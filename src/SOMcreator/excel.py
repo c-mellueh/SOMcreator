@@ -275,6 +275,17 @@ def open_file(path: str) -> None:
                 new_pset = pset.create_child(pset.name)
                 block.object.add_property_set(new_pset)
 
+    def build_object_tree() -> None:
+        tree_dict: dict[str, classes.Object] = {obj.ident_attrib.value[0]: obj for obj in classes.Object}
+
+        for ident, item in tree_dict.items():
+            ident_list = ident.split(".")[:-1]
+            parent_obj = tree_dict.get(".".join(ident_list))
+
+            if parent_obj is not None:
+                parent_obj.add_child(item)
+
+
     def build_aggregations() -> None:
         def get_root_blocks() -> set[ExcelBlock]:
             children = set()
@@ -327,4 +338,5 @@ def open_file(path: str) -> None:
 
         create_blocks()
         create_items()
+        build_object_tree()
         build_aggregations()

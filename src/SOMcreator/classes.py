@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import copy
-from typing import Iterator, Type
+from typing import Iterator
 from uuid import uuid4
-from . import constants, filehandling,excel
+
+from . import constants, filehandling, excel
 
 
 # Add child to Parent leads to reverse
 
 class IterRegistry(type):
-    _registry= set()
+    _registry = set()
     """ Helper for Iteration"""
 
-    def __iter__(self) -> Iterator[PropertySet|Object|Attribute|Aggregation]:
-        return iter(sorted(list(self._registry),key= lambda x:x.name))
+    def __iter__(self) -> Iterator[PropertySet | Object | Attribute | Aggregation]:
+        return iter(sorted(list(self._registry), key=lambda x: x.name))
 
     def __len__(self) -> int:
         return len(self._registry)
@@ -81,7 +82,7 @@ class Project(object):
         self._version = value
         self._changed = True
 
-    def save(self,path:str):
+    def save(self, path: str):
         tree = filehandling.build_xml(self)
         with open(path, "wb") as f:
             tree.write(f, pretty_print=True, encoding="utf-8", xml_declaration=True)
@@ -103,11 +104,12 @@ class Project(object):
         self.seperator_status = True
         self.seperator = ","
 
-    def open(self,path):
+    def open(self, path):
         filehandling.read_xml(self, path)
 
-    def import_excel(self,path):
+    def import_excel(self, path):
         excel.open_file(path)
+
 
 class Hirarchy(object, metaclass=IterRegistry):
 
@@ -118,15 +120,16 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._name = name
         self.changed = True
         self._mapping_dict = {
-            constants.SHARED_PARAMETERS:True,
-            constants.IFC_MAPPING:True
+            constants.SHARED_PARAMETERS: True,
+            constants.IFC_MAPPING: True
         }
+
     @property
-    def mapping_dict(self) -> dict[str,bool]:
+    def mapping_dict(self) -> dict[str, bool]:
         return self._mapping_dict
 
     @mapping_dict.setter
-    def mapping_dict(self,value:dict[str,bool]) -> None:
+    def mapping_dict(self, value: dict[str, bool]) -> None:
         self._mapping_dict = value
 
     @property
@@ -141,11 +144,11 @@ class Hirarchy(object, metaclass=IterRegistry):
         self.changed = True
 
     @property
-    def parent(self) -> Type[Hirarchy]:
+    def parent(self) -> Hirarchy:
         return self._parent
 
     @parent.setter
-    def parent(self, parent: Type[Hirarchy]) -> None:
+    def parent(self, parent: Hirarchy) -> None:
         self._parent = parent
         self.changed = True
 
@@ -164,15 +167,15 @@ class Hirarchy(object, metaclass=IterRegistry):
             return False
 
     @property
-    def children(self) -> set[Type[Hirarchy]]:
+    def children(self) -> set[Hirarchy]:
         return self._children
 
-    def add_child(self, child: Type[Hirarchy]) -> None:
+    def add_child(self, child: Hirarchy) -> None:
         self.children.add(child)
         child.parent = self
         self.changed = True
 
-    def remove_child(self, child: Type[Hirarchy]) -> None:
+    def remove_child(self, child: Hirarchy) -> None:
         self.children.remove(child)
         child.delete()
 
@@ -193,7 +196,6 @@ class PropertySet(Hirarchy):
         if self.identifier is None:
             self.identifier = str(uuid4())
         self.changed = True
-
 
     @property
     def is_predefined(self) -> bool:
@@ -469,7 +471,8 @@ class Attribute(Hirarchy):
 class Object(Hirarchy):
     _registry: set[Object] = set()
 
-    def __init__(self, name: str, ident_attrib: [Attribute, str], identifier: str = None, ifc_mapping:set[str]|None = None ) -> None:
+    def __init__(self, name: str, ident_attrib: [Attribute, str], identifier: str = None,
+                 ifc_mapping: set[str] | None = None) -> None:
         super(Object, self).__init__(name=name)
         self._registry.add(self)
 
@@ -500,7 +503,7 @@ class Object(Hirarchy):
     @ifc_mapping.setter
     def ifc_mapping(self, value: set[str]):
         value_set = set()
-        for item in value:  #filter empty Inputs
+        for item in value:  # filter empty Inputs
             if not (item == "" or item is None):
                 value_set.add(item)
         self._ifc_mapping = value_set
@@ -608,18 +611,20 @@ class Object(Hirarchy):
 
 class Aggregation(Hirarchy):
     _registry: set[Aggregation] = set()
+
     def __str__(self):
         return self.name
-    def __init__(self,obj:Object,uuid:str|None = None):
-        super(Aggregation, self).__init__(name = obj.name)
+
+    def __init__(self, obj: Object, uuid: str | None = None):
+        super(Aggregation, self).__init__(name=obj.name)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
         else:
             self.uuid = str(uuid)
         self.object = obj
-        self._parent:Aggregation|None = None
-        self.connection_dict:dict[Aggregation,int] = dict()
+        self._parent: Aggregation | None = None
+        self.connection_dict: dict[Aggregation, int] = dict()
 
         self.object.add_aggregation_representation(self)
 
@@ -627,17 +632,17 @@ class Aggregation(Hirarchy):
     def parent_connection(self) -> int:
         return self.parent.connection_dict[self]
 
-    def add_child(self, child:Aggregation, connection_type: int = constants.AGGREGATION) -> Aggregation:
+    def add_child(self, child: Aggregation, connection_type: int = constants.AGGREGATION) -> Aggregation:
         self.children.add(child)
-        child.set_parent(self,connection_type)
-        self.connection_dict[child]= connection_type
+        child.set_parent(self, connection_type)
+        self.connection_dict[child] = connection_type
         return child
 
     @property
     def parent(self) -> Aggregation:
         return self._parent
 
-    def set_parent(self,value:Aggregation,connection_type:int) -> None:
+    def set_parent(self, value: Aggregation, connection_type: int) -> None:
         if self.parent is not None:
             self.connection_dict.pop(self.parent)
         self._parent = value
@@ -646,6 +651,7 @@ class Aggregation(Hirarchy):
     @property
     def is_root(self):
         return not self.parent
+
 
 class Script():
     def __init__(self, title: str, obj: Object) -> None:
@@ -674,34 +680,3 @@ class Script():
     def name(self, value: str) -> None:
         self._name = value
         self.changed = True
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

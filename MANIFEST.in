@@ -1,1 +1,2 @@
-include src/SOMcreator/Template/ifc_classes/*
+include src/SOMcreator/Template/*
+include src/SOMcreator/Template/js_templates/*

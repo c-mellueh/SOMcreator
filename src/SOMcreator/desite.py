@@ -260,7 +260,7 @@ def export_bs(project:classes.Project,path:str) -> None:
             nonlocal id_dict
             xml_child = etree.SubElement(xml_item, "section")
             id_dict[aggregation] = aggregation.uuid
-            xml_child.set("ID", id)
+            xml_child.set("ID", aggregation.uuid)
             xml_child.set("name", aggregation.object.name)
             xml_child.set("pre", "")
             xml_child.set("type", "typeBsGroup")

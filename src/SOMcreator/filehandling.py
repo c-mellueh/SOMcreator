@@ -1,7 +1,11 @@
 from __future__ import annotations
-from typing import  Type
+
+from typing import Type
+
+from lxml import etree
+
 from . import constants, classes
-from lxml import  etree
+
 
 def string_to_bool(text: str) -> bool | None:
     if text == str(True):
@@ -11,8 +15,9 @@ def string_to_bool(text: str) -> bool | None:
     else:
         return None
 
+
 def build_xml(project: classes.Project) -> etree.ElementTree:
-    def add_parent(xml_item:etree.Element, item: classes.Object | classes.PropertySet | classes.Attribute) -> None:
+    def add_parent(xml_item: etree.Element, item: classes.Object | classes.PropertySet | classes.Attribute) -> None:
         if item.parent is not None:
             xml_item.set(constants.PARENT, str(item.parent.identifier))
         else:
@@ -22,7 +27,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
         xml_grouping = etree.SubElement(xml_project, constants.PREDEFINED_PSETS)
         predefined_psets = [pset for pset in classes.PropertySet if pset.object == None]
         for predefined_pset in predefined_psets:
-            add_property_set(predefined_pset,xml_grouping)
+            add_property_set(predefined_pset, xml_grouping)
 
     def add_objects() -> None:
 
@@ -53,10 +58,10 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
                 xml_script.text = script.code
 
         xml_grouping = etree.SubElement(xml_project, constants.OBJECTS)
-        for obj in sorted(classes.Object, key=lambda x:x.name):
-            add_object(obj,xml_grouping)
+        for obj in sorted(classes.Object, key=lambda x: x.name):
+            add_object(obj, xml_grouping)
 
-    def add_property_set(property_set: classes.PropertySet, xml_parent:etree.Element) -> None:
+    def add_property_set(property_set: classes.PropertySet, xml_parent: etree.Element) -> None:
         def add_attribute(attribute: classes.Attribute, xml_pset: etree._Element) -> None:
             def add_value(attribute: classes.Attribute, xml_attribute: etree._Element) -> None:
                 values = attribute.value
@@ -97,7 +102,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
         for attribute in property_set.attributes:
             add_attribute(attribute, xml_attributes)
 
-    def add_aggregation(aggregation: classes.Aggregation, xml_nodes:etree.Element) -> None:
+    def add_aggregation(aggregation: classes.Aggregation, xml_nodes: etree.Element) -> None:
         xml_aggregation = etree.SubElement(xml_nodes, constants.NODE)
         xml_aggregation.set(constants.IDENTIFIER, str(aggregation.uuid))
         xml_aggregation.set(constants.OBJECT.lower(), str(aggregation.object.identifier))
@@ -106,7 +111,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
         else:
             xml_aggregation.set(constants.PARENT, constants.NONE)
         xml_aggregation.set(constants.IS_ROOT, str(aggregation.is_root))
-        if aggregation .parent is not None:
+        if aggregation.parent is not None:
             xml_aggregation.set(constants.CONNECTION, str(aggregation.parent_connection))
         else:
             xml_aggregation.set(constants.CONNECTION, constants.NONE)
@@ -122,11 +127,12 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
     xml_nodes = etree.SubElement(xml_project, constants.NODES)
 
     for aggregation in classes.Aggregation:
-        add_aggregation(aggregation,xml_nodes)
+        add_aggregation(aggregation, xml_nodes)
 
     tree = etree.ElementTree(xml_project)
     project.reset_changed()
     return tree
+
 
 def read_xml(project: classes.Project, path: str = False) -> None:
     if not path:
@@ -180,6 +186,8 @@ def read_xml(project: classes.Project, path: str = False) -> None:
                 value = transform_new_values(xml_attribute)
                 attrib = classes.Attribute(property_set, name, value, value_type, data_type, child_inh, identifier)
                 revit_mapping = attribs.get(constants.REVIT_MAPPING)
+                if revit_mapping == constants.NONE:
+                    revit_mapping = attrib.name
                 attrib.revit_name = revit_mapping
                 if is_identifier == str(True):
                     ident_attrib = attrib
@@ -202,18 +210,18 @@ def read_xml(project: classes.Project, path: str = False) -> None:
 
         return property_sets, ident_attrib
 
-    def import_objects(xml_objects:list[etree._Element]):
+    def import_objects(xml_objects: list[etree._Element]):
 
         def get_obj_data(xml_object: etree._Element) -> (str, str, str, bool):
 
-            name: str = xml_object.attrib.get(constants.NAME)
-            parent: str = xml_object.attrib.get(constants.PARENT)
+            obj_name: str = xml_object.attrib.get(constants.NAME)
+            obj_parent: str = xml_object.attrib.get(constants.PARENT)
             identifier: str = xml_object.attrib.get(constants.IDENTIFIER)
-            is_concept: str = xml_object.attrib.get(constants.IS_CONCEPT)
+            obj_is_concept: str = xml_object.attrib.get(constants.IS_CONCEPT)
 
-            return name, parent, identifier, string_to_bool(is_concept)
+            return obj_name, obj_parent, identifier, string_to_bool(obj_is_concept)
 
-        def import_scripts(xml_scripts: etree._Element | None, obj: classes.Object) -> None:
+        def import_scripts(xml_scripts: etree.Element | None, obj: classes.Object) -> None:
             if xml_scripts is None:
                 return
             for xml_script in xml_scripts:
@@ -232,13 +240,14 @@ def read_xml(project: classes.Project, path: str = False) -> None:
             obj = classes.Object(name, ident_attrib, identifier=identifer)
             ident_dict[identifer] = obj
 
-            obj.ifc_mapping = [mapping.text for mapping in xml_mapping_group]
+            obj.ifc_mapping = {mapping.text for mapping in xml_mapping_group}
+            if not obj.ifc_mapping:
+                obj.ifc_mapping.add("IfcBuildingElementProxy")
 
             for property_set in property_sets:
                 obj.add_property_set(property_set)
 
             import_scripts(xml_script_group, obj)
-
 
     def create_ident_dict(item_list: list[Type[classes.Hirarchy]]) -> dict[str, Type[classes.Hirarchy]]:
         return {item.identifier: item for item in item_list}
