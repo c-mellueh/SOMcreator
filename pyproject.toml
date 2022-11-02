@@ -29,3 +29,6 @@ version = {attr = "SOMcreator.__version__"}
 include-package-data = true
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[project.entry-points.pyinstaller40]
+hook-dirs = "SOMcreator.Template.__pyinstaller:get_hook_dirs"
