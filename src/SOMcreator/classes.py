@@ -565,6 +565,16 @@ class Object(Hirarchy):
     def property_sets(self) -> list[PropertySet]:
         return self._property_sets
 
+    # override name setter because of intheritance
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        self._name = value
+        self.changed = True
+
     def add_property_set(self, property_set: PropertySet) -> None:
         self._property_sets.append(property_set)
         property_set.object = self
