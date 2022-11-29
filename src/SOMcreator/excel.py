@@ -4,6 +4,7 @@ import logging
 import os.path
 import shutil
 import tempfile
+import re
 from typing import Iterator
 
 import openpyxl
@@ -20,7 +21,7 @@ ident_attrib_name = "bauteilKlassifikation"
 def split_string(text: str) -> list[str] | None:
     if text is None:
         return []
-    text = text.split(";")
+    text = re.findall(r'[^,;\s]+', text)
     for i, item in enumerate(text):
         if "(" in item:
             item = item.split("(")
