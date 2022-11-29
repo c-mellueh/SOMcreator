@@ -149,6 +149,11 @@ class ExcelBlock(metaclass=ExcelIterator):
         return inherit_blocks
 
     def create_attributes(self) -> list[classes.Attribute]:
+        """
+           Iterate over Attributes
+           Create Them and find special Datatypes
+           """
+
         def transform_value_types(value: str) -> (str, bool):
             special = False
             if value is not None:
@@ -168,11 +173,6 @@ class ExcelBlock(metaclass=ExcelIterator):
 
             return data_type, special
 
-        """
-           Iterate over Attributes
-           Create Them and find special Datatypes
-           """
-
         if self.is_predefined_pset:
             row = self.base_cell.row + 4
         else:
@@ -188,7 +188,7 @@ class ExcelBlock(metaclass=ExcelIterator):
             data_type, special = transform_value_types(data_type_text)
             attribute_name = entry.value
             alternative_name = self.sheet.cell(row=entry.row, column=entry.column + 1).value
-            attribute = classes.Attribute(self.pset, attribute_name, [""], constants.VALUE_TYPE_LOOKUP[constants.LIST],
+            attribute = classes.Attribute(self.pset, attribute_name, [], constants.VALUE_TYPE_LOOKUP[constants.LIST],
                                           data_type=data_type)
             if alternative_name and alternative_name is not None:
                 attribute.revit_name = alternative_name
