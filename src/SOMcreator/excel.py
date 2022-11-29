@@ -307,13 +307,16 @@ def open_file(path: str) -> None:
 
             for aggregate_block in aggregate_list:
                 if aggregate_block.name != block.name:
-                    child_aggreg = classes.Aggregation(aggregate_block.object)
-                    relationship = constants.AGGREGATION
-                    if aggregate_block in inherit_list:
-                        relationship += constants.INHERITANCE
+                    if aggregate_block.is_predefined_pset:
+                        logging.error(f"[{block.name}] can't aggregate to {aggregate_block.name}")
+                    else:
+                        child_aggreg = classes.Aggregation(aggregate_block.object)
+                        relationship = constants.AGGREGATION
+                        if aggregate_block in inherit_list:
+                            relationship += constants.INHERITANCE
 
-                    aggregation.add_child(child_aggreg, relationship)
-                    link_child_nodes(child_aggreg, aggregate_block)
+                        aggregation.add_child(child_aggreg, relationship)
+                        link_child_nodes(child_aggreg, aggregate_block)
                 else:
                     logging.warning(f"[{aggregation.name}] recursive aggregation")
 

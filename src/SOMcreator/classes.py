@@ -110,6 +110,9 @@ class Project(object):
     def import_excel(self, path):
         excel.open_file(path)
 
+    @property
+    def objects(self) -> Iterator[Object]:
+        return iter(Object)
 
 class Hirarchy(object, metaclass=IterRegistry):
 
