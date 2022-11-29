@@ -139,6 +139,7 @@ def export_modelcheck(project: classes.Project, path:str) -> None:
         def handle_tree_structure(xml_container, obj: classes.Object) -> None:
             def create_container(xml_container):
                 xml_container = handle_container(xml_container, obj.name)
+                create_object(xml_container)
                 for child in sorted(obj.children, key=lambda x: x.name):
                     handle_tree_structure(xml_container, child)
 
@@ -171,7 +172,7 @@ def export_modelcheck(project: classes.Project, path:str) -> None:
                 for child in sorted(obj.children, key=lambda x: x.name):
                     handle_tree_structure(xml_container, child)
 
-            if obj.is_concept:
+            if obj.children:
                 create_container(xml_container)
             else:
                 create_object(xml_container)
