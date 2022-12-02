@@ -18,6 +18,7 @@ dependencies = [
     "lxml",
     "jinja2",
     "openpyxl",
+    "anytree"
 ]
 dynamic = ["version"]
 [tool.setuptools.dynamic]

@@ -3,9 +3,8 @@ from __future__ import annotations
 import copy
 from typing import Iterator
 from uuid import uuid4
-
+from anytree import AnyNode
 from . import constants, filehandling, excel
-
 
 # Add child to Parent leads to reverse
 
@@ -113,6 +112,19 @@ class Project(object):
     @property
     def objects(self) -> Iterator[Object]:
         return iter(Object)
+
+    def tree(self) -> AnyNode:
+        def create_childen(node: AnyNode):
+            obj: Object = node.obj
+            for child in obj.children:
+                child_node = AnyNode(id=child.name, obj=child, parent=node)
+                create_childen(child_node)
+
+        base = AnyNode(id=self.name, obj=self)
+        root_objects = [AnyNode(id=obj.name, obj=obj, parent=base) for obj in Object if obj.parent is None]
+        for n in root_objects:
+            create_childen(n)
+        return base
 
 class Hirarchy(object, metaclass=IterRegistry):
 

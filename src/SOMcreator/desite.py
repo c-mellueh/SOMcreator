@@ -9,7 +9,7 @@ import csv
 
 from . import classes,constants,Template
 from lxml import etree
-
+from anytree import AnyNode
 
 output_date_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 output_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -25,7 +25,7 @@ def handle_header(project: classes.Project, export_format: str) -> etree._Elemen
 
 ##TODO add xs:bool
 
-def export_modelcheck(project: classes.Project, path:str) -> None:
+def export_modelcheck(project, path:str,project_tree = None) -> None:
     def add_js_rule(parent: etree._Element, file: codecs.StreamReaderWriter) -> str | None:
         name = os.path.basename(file.name)
         if not name.endswith(".js"):
@@ -75,7 +75,7 @@ def export_modelcheck(project: classes.Project, path:str) -> None:
         checkrun.set("createUndefined", "false")
         return checkrun
 
-    def init_xml() -> (etree._Element, etree._Element):
+    def init_xml(project) -> (etree._Element, etree._Element):
         xml_qa_export = handle_header(project, "qaExport")
         xml_element_section = handle_element_section(xml_qa_export)
         text = f"{project.name} : {project.version}"
@@ -133,17 +133,19 @@ def export_modelcheck(project: classes.Project, path:str) -> None:
         code = etree.SubElement(xml_rule_script, "code")
         return code
 
-    def handle_object_rules(xml_container: etree._Element, template: jinja2.Template) -> dict[
+    def handle_object_rules(base_xml_container: etree._Element, template: jinja2.Template) -> dict[
         etree._Element, classes.Object]:
 
-        def handle_tree_structure(xml_container, obj: classes.Object) -> None:
-            def create_container(xml_container):
-                xml_container = handle_container(xml_container, obj.name)
-                create_object(xml_container)
-                for child in sorted(obj.children, key=lambda x: x.name):
-                    handle_tree_structure(xml_container, child)
+        def handle_tree_structure(parent_xml_container, parent_node:AnyNode) -> None:
 
-            def create_object(xml_container):
+            def create_container(xml_container, node:AnyNode):
+                new_xml_container = handle_container(xml_container, node.obj.name)
+                create_object(new_xml_container,node)
+                for child_node in sorted(node.children, key=lambda x: x.id):
+                    handle_tree_structure(new_xml_container, child_node)
+
+            def create_object(xml_container,node:AnyNode):
+                obj:classes.Object = node.obj
                 xml_checkrun = handle_checkrun(xml_container, obj.name, project.author)
                 xml_rule = handle_rule(xml_checkrun, "Attributes")
                 xml_attribute_rule_list = handle_attribute_rule_list(xml_rule)
@@ -169,19 +171,17 @@ def export_modelcheck(project: classes.Project, path:str) -> None:
                     xml_code.text = script.code
 
                 xml_object_dict[xml_checkrun] = obj
-                for child in sorted(obj.children, key=lambda x: x.name):
-                    handle_tree_structure(xml_container, child)
 
-            if obj.children:
-                create_container(xml_container)
+            if parent_node.children:
+                create_container(parent_xml_container,parent_node)
             else:
-                create_object(xml_container)
+                create_object(parent_xml_container,parent_node)
 
         xml_object_dict: dict[etree._Element, classes.Object] = dict()
-        root_objects = [obj for obj in classes.Object if obj.parent is None]
+        root_nodes = project_tree.children
 
-        for root_object in sorted(root_objects, key=lambda x: x.name):
-            handle_tree_structure(xml_container, root_object)
+        for root_node in sorted(root_nodes, key=lambda x: x.id):
+            handle_tree_structure(base_xml_container, root_node)
         return xml_object_dict
 
     def handle_data_section(xml_qa_export: etree._Element, xml_checkrun_first: etree._Element,
@@ -236,8 +236,9 @@ def export_modelcheck(project: classes.Project, path:str) -> None:
         property_section = etree.SubElement(repository, "propertySection")
 
     def export(path: str) -> None:
+
         template = handle_template()
-        xml_container, xml_qa_export = init_xml()
+        xml_container, xml_qa_export = init_xml(project)
         xml_checkrun_first, xml_attribute_rule_list = define_xml_elements(xml_container, "initial_tests")
         handle_js_rules(xml_attribute_rule_list, "start")
         xml_checkrun_obj = handle_object_rules(xml_container, template)
@@ -250,6 +251,8 @@ def export_modelcheck(project: classes.Project, path:str) -> None:
         with open(path, "wb") as f:
             tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
 
+    if project_tree is None:
+        project_tree = project.tree()
     export(path)
 
 
