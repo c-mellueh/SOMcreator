@@ -1,9 +1,9 @@
 id = desiteThis.ID()
-pset = "Bestandsdaten:"
+pset = "Allgemeine_Eigenschaften:"
 
 
 status = desiteAPI.getPropertyValue(id, "Check_State", "xs:string")
-objekttyp = desiteAPI.getPropertyValue(id,pset+"Objekttyp","xs:string")
+objekttyp = desiteAPI.getPropertyValue(id,pset+"bauteilKlassifikation","xs:string")
 console.log(status)
 
 if (status == "Ungeprüft") {
