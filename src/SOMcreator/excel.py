@@ -21,7 +21,7 @@ ident_attrib_name = "bauteilKlassifikation"
 def split_string(text: str) -> list[str] | None:
     if text is None:
         return []
-    text = re.findall(r'[^,;\s]+', text)
+    text = re.findall(r'[^,;]+', text)
     for i, item in enumerate(text):
         if "(" in item:
             item = item.split("(")
@@ -237,7 +237,7 @@ class ExcelBlock(metaclass=ExcelIterator):
 
         for string in string_list:
             if string not in IFC_4_1:
-                logging.warning(f"[{self.name}]: '{string}' not in IFC 4.1 Specification")
+                logging.info(f"[{self.name}]: '{string}' not in IFC 4.1 Specification")
         return set(string_list)
 
 
