@@ -1,8 +1,7 @@
 dist/
+build/
+tests/
 src/SOMcreator.egg-info
 .idea
-build/
-test/
-src/test.py
 *xlsx
 /*xml
