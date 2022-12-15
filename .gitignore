@@ -5,3 +5,4 @@ src/SOMcreator.egg-info
 .idea
 *xlsx
 /*xml
+*test.py
