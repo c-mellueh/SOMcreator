@@ -655,6 +655,16 @@ class Aggregation(Hirarchy):
 
     @property
     def parent_connection(self) -> int:
+        """
+        NO PARENT = 0
+        AGGREGATION = 1
+        INHERITANCE = 2
+        AGGREGATION+INHERITANCE =3
+        :return:
+        """
+        if self.parent is None:
+            return 0
+
         return self.parent.connection_dict[self]
 
     def add_child(self, child: Aggregation, connection_type: int = constants.AGGREGATION) -> Aggregation:
