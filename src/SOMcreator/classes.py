@@ -633,6 +633,12 @@ class Object(Hirarchy):
                 return property_set
         return None
 
+    @property
+    def ident_value(self):
+        if not self.is_concept:
+            return self.ident_attrib.value[0]
+        return None
+
 
 class Aggregation(Hirarchy):
     _registry: set[Aggregation] = set()
