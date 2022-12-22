@@ -1,5 +1,7 @@
 from __future__ import annotations
-
+from .Template import MAPPING_TEMPLATE, HOME_DIR
+import jinja2
+import os
 from typing import Type
 
 from lxml import etree
@@ -326,3 +328,29 @@ def read_xml(project: classes.Project, path: str = False) -> None:
 
     link_parents(xml_group_predef_psets, xml_group_objects)
     link_aggregation()
+
+
+def create_mapping_script(project:classes.Project,pset_name:str,path:str):
+    attrib_dict = dict()
+    obj: classes.Object
+    for obj in project.objects:
+        klass = obj.ident_attrib.value[0]
+        obj_dict = dict()
+        for pset in obj.property_sets:
+            pset_dict = dict()
+            for attribute in pset.attributes:
+                name = attribute.name
+                data_format = attribute.data_type
+                pset_dict[name] = data_format
+            obj_dict[pset.name] = pset_dict
+        attrib_dict[klass] = obj_dict
+    file_loader = jinja2.FileSystemLoader(HOME_DIR)
+    env = jinja2.Environment(loader=file_loader)
+    env.trim_blocks = True
+    env.lstrip_blocks = True
+
+    template = env.get_template(MAPPING_TEMPLATE)
+    code = template.render(attribute_dict=attrib_dict,pset_name = pset_name)
+    with open(path, "w") as file:
+        file.write(code)
+    pass

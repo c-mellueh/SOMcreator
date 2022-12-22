@@ -4,6 +4,8 @@ import json
 
 HOME_DIR = os.path.dirname(__file__)
 TEMPLATE = "template.txt"
+MAPPING_TEMPLATE = "mapping_template.txt"
+
 
 with importlib.resources.open_text("SOMcreator.Template","ifc.json") as file:
     dict = json.load(file)

@@ -19,7 +19,7 @@ def get_attrib_count(obj: classes.Object):
     return sum(len([attrib for attrib in pset.attributes]) for pset in obj.property_sets)
 
 
-def create_allplan_mapping(project: classes.Project, path: str):
+def create_allplan_mapping(project: classes.Project, path: str,allplan_mapping_name:str):
     def create_definition(worksheet: Worksheet) -> dict[str, classes.Attribute]:
         COLUMNS = ["AttributeName",
                    "AttributeTyp",
@@ -67,14 +67,16 @@ def create_allplan_mapping(project: classes.Project, path: str):
 
         row_index = 2
         for obj in project.objects:
-            if not obj.is_concept:
-                worksheet.cell(row_index, 2, obj.ident_value)
-                col_index = 3
-                for propery_set in obj.property_sets:
-                    for attribute in propery_set.attributes:
+            if obj.is_concept:
+                continue
+            worksheet.cell(row_index, 2, obj.ident_value)
+            col_index = 3
+            for propery_set in obj.property_sets:
+                for attribute in propery_set.attributes:
+                    if attribute.name != kenner:
                         worksheet.cell(row_index, col_index, attribute.name)
                         col_index += 2
-                row_index += 1
+            row_index += 1
 
     def create_mapping(attribute_dict: dict[str, classes.Attribute], worksheet: Worksheet):
         def transform_type(t: str) -> str:
@@ -92,7 +94,7 @@ def create_allplan_mapping(project: classes.Project, path: str):
         worksheet.cell(2, 1, "All")
         for index, (name, attribute) in enumerate(sorted(attribute_dict.items())):
             worksheet.cell(2 + index, 2, name)
-            worksheet.cell(2 + index, 4, "Allplan")
+            worksheet.cell(2 + index, 4, allplan_mapping_name)
             worksheet.cell(2 + index, 5, transform_type(attribute.data_type))
 
     wb = Workbook()
@@ -100,6 +102,6 @@ def create_allplan_mapping(project: classes.Project, path: str):
     ws.title = TITLES[0]
 
     ad = create_definition(ws)
-    create_zuweisung("BauteilKlassifikation", wb.create_sheet(TITLES[1]))
+    create_zuweisung("bauteilKlassifikation", wb.create_sheet(TITLES[1]))
     create_mapping(ad, wb.create_sheet(TITLES[2]))
     wb.save(path)
