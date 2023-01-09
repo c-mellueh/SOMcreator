@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, IO, Iterator
 
-from . import classes, constants
+from .. import classes, constants
 
 if TYPE_CHECKING:
     pass

@@ -4,7 +4,8 @@ import copy
 from typing import Iterator
 from uuid import uuid4
 from anytree import AnyNode
-from . import constants, filehandling, excel
+from . import constants, filehandling
+from .external_software import excel
 
 # Add child to Parent leads to reverse
 
