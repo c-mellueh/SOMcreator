@@ -1,2 +1,3 @@
 from .classes import PropertySet,Object,Project,Attribute
-__version__ = "1.0.9.2"
+from .external_software import desite,excel,allplan,revit
+__version__ = "1.0.10"
