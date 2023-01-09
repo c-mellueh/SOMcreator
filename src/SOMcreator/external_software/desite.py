@@ -7,7 +7,7 @@ import uuid
 import jinja2
 import csv
 
-from . import classes,constants,Template
+from .. import classes,constants,Template
 from lxml import etree
 from anytree import AnyNode
 

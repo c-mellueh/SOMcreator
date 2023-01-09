@@ -1,25 +1,19 @@
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-
-from . import classes, constants
-
-TITLES = ["Definition", "Zuweisung", "Mapping"]
+from .. import classes, constants
 
 
-def transform_datatype(data_type: str) -> str:
-    if data_type == constants.XS_INT:
-        return "Ganzzahl"
-    if data_type == constants.XS_DOUBLE:
-        return "Fließkommazahl"
+def create_mapping(project: classes.Project, path: str, allplan_mapping_name: str):
+    TITLES = ["Definition", "Zuweisung", "Mapping"]
 
-    return "Text"
+    def transform_datatype(data_type: str) -> str:
+        if data_type == constants.XS_INT:
+            return "Ganzzahl"
+        if data_type == constants.XS_DOUBLE:
+            return "Fließkommazahl"
 
+        return "Text"
 
-def get_attrib_count(obj: classes.Object):
-    return sum(len([attrib for attrib in pset.attributes]) for pset in obj.property_sets)
-
-
-def create_allplan_mapping(project: classes.Project, path: str,allplan_mapping_name:str):
     def create_definition(worksheet: Worksheet) -> dict[str, classes.Attribute]:
         COLUMNS = ["AttributeName",
                    "AttributeTyp",
@@ -59,6 +53,10 @@ def create_allplan_mapping(project: classes.Project, path: str,allplan_mapping_n
         return attribute_dict
 
     def create_zuweisung(kenner: str, worksheet: Worksheet):
+
+        def get_attrib_count(obj: classes.Object):
+            return sum(len([attrib for attrib in pset.attributes]) for pset in obj.property_sets)
+
         max_attribs = max(get_attrib_count(obj) for obj in project.objects)
         header = ["Kenner"] + ["Wert", "Name"] * max_attribs
         for i, text in enumerate(header):

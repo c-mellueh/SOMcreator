@@ -11,8 +11,8 @@ import openpyxl
 from openpyxl.cell.cell import Cell
 from openpyxl.worksheet.worksheet import Worksheet
 
-from . import classes, constants
-from .Template import IFC_4_1
+from .. import classes, constants
+from ..Template import IFC_4_1
 
 ident_pset_name = "Allgemeine Eigenschaften"
 ident_attrib_name = "bauteilKlassifikation"
