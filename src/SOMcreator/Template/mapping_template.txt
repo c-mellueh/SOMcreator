@@ -1,4 +1,7 @@
-ident = "{{ pset_name }}:bauteilKlassifikation"
+DELETE_OLD_PROPERTY = true
+
+
+IDENT = "{{ pset_name }}:bauteilKlassifikation"
 
 attributes_dict = {{ attribute_dict }}
 
@@ -46,8 +49,8 @@ function move_attributes(id,pset_dict) {
             }
             else if (value !== undefined) {
                 desiteAPI.setPropertyValue(id, new_text, data_type, value)
-                if (attribute_name !== "bauteilKlassifikation") {
-                    //desiteAPI.deleteProperty(id,old_text,data_type)
+                if (DELETE_OLD_PROPERTY) {
+                    desiteAPI.deleteProperty(id,old_text,data_type)
                 }
             }
         }
@@ -68,10 +71,10 @@ function fortschritt(durchlauf, anzahl_gesamt, vorheriger_wert) {
 }
 
 function getKlassifikation(id){
-    klassifikation = desiteAPI.getPropertyValue(id,ident,"xs:string")
+    klassifikation = desiteAPI.getPropertyValue(id,IDENT,"xs:string")
     klassifikation_neu = desiteAPI.getPropertyValue(id,"Allgemeine Eigenschaften:bauteilKlassifikation","xs:string")
     if (klassifikation === undefined && klassifikation_neu ===undefined) {
-        desiteAPI.writeToFile(id+";"+klass+";{{ pset_name }};"+ident+"\n")
+        desiteAPI.writeToFile(id+";"+klassifikation+";{{ pset_name }};"+IDENT+"\n")
         return [undefined,false]
     }
     else{
