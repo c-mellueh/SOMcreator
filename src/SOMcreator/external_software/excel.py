@@ -5,6 +5,7 @@ import os.path
 import shutil
 import tempfile
 import re
+import json
 from typing import Iterator
 
 import openpyxl
@@ -240,107 +241,130 @@ class ExcelBlock(metaclass=ExcelIterator):
                 logging.info(f"[{self.name}]: '{string}' not in IFC 4.1 Specification")
         return set(string_list)
 
+def _create_blocks(sheet) -> None:
+    """create Excel Blocks"""
+    excel_blocks = set()
 
-def open_file(path: str) -> None:
-    # TODO: add request for Identification Attribute
-
-    def create_blocks() -> None:
-        """create Excel Blocks"""
-        excel_blocks = set()
-
-        row: tuple[Cell]
-        for row in sheet:
-            for cell in row:
-                if cell.value is not None:
-                    text = cell.value.strip()
-                    if text in ["name", "name:"]:
-                        if sheet.cell(cell.row + 1, cell.column).value == "Kürzel":
-                            excel_blocks.add(ExcelBlock(cell, sheet))
-                        else:
-                            logging.error(f"{sheet.cell(cell.row + 1, cell.column)} hat den Wert 'name'")
-
-    def create_items() -> None:
-        """create Objects and PropertySets"""
-        predef_psets = [block for block in ExcelBlock if block.is_predefined_pset]
-        objects = [block for block in ExcelBlock if not block.is_predefined_pset]
-
-        for predef_pset_block in predef_psets:
-            predef_pset_block.create_predefined_pset()
-
-        for object_block in objects:
-            obj = object_block.create_object()
-            object_block.object = obj
-
-        for block in objects:
-            for pset in [block.pset for block in block.parent_classes]:
-                new_pset = pset.create_child(pset.name)
-                block.object.add_property_set(new_pset)
-
-    def build_object_tree() -> None:
-        tree_dict: dict[str, classes.Object] = {obj.ident_attrib.value[0]: obj for obj in classes.Object}
-
-        for ident, item in tree_dict.items():
-            ident_list = ident.split(".")[:-1]
-            parent_obj = tree_dict.get(".".join(ident_list))
-
-            if parent_obj is not None:
-                parent_obj.add_child(item)
-
-
-    def build_aggregations() -> None:
-        def get_root_blocks() -> set[ExcelBlock]:
-            children = set()
-            for e_block in ExcelBlock:  # find all child blocks
-                if not e_block.is_predefined_pset:
-                    children = set.union(e_block.aggregates, children)
-                    children = set.union(e_block.inherits, children)
-
-            r_blocks = set()  # root blocks
-            for e_block in ExcelBlock:
-                if e_block not in children and not e_block.is_predefined_pset:
-                    r_blocks.add(e_block)
-
-            return r_blocks
-
-        def link_child_nodes(aggregation: classes.Aggregation, block: ExcelBlock) -> None:
-            aggregate_list = block.aggregates
-            inherit_list = block.inherits
-
-            for aggregate_block in aggregate_list:
-                if aggregate_block.name != block.name:
-                    if aggregate_block.is_predefined_pset:
-                        logging.error(f"[{block.name}] can't aggregate to {aggregate_block.name}")
+    row: tuple[Cell]
+    for row in sheet:
+        for cell in row:
+            if cell.value is not None:
+                text = cell.value.strip()
+                if text in ["name", "name:"]:
+                    if sheet.cell(cell.row + 1, cell.column).value == "Kürzel":
+                        excel_blocks.add(ExcelBlock(cell, sheet))
                     else:
-                        child_aggreg = classes.Aggregation(aggregate_block.object)
-                        relationship = constants.AGGREGATION
-                        if aggregate_block in inherit_list:
-                            relationship += constants.INHERITANCE
+                        logging.error(f"{sheet.cell(cell.row + 1, cell.column)} hat den Wert 'name'")
 
-                        aggregation.add_child(child_aggreg, relationship)
-                        link_child_nodes(child_aggreg, aggregate_block)
+def _create_items() -> None:
+    """create Objects and PropertySets"""
+    predef_psets = [block for block in ExcelBlock if block.is_predefined_pset]
+    objects = [block for block in ExcelBlock if not block.is_predefined_pset]
+
+    for predef_pset_block in predef_psets:
+        predef_pset_block.create_predefined_pset()
+
+    for object_block in objects:
+        obj = object_block.create_object()
+        object_block.object = obj
+
+    for block in objects:
+        for pset in [block.pset for block in block.parent_classes]:
+            new_pset = pset.create_child(pset.name)
+            block.object.add_property_set(new_pset)
+
+def _build_object_tree() -> None:
+    tree_dict: dict[str, classes.Object] = {obj.ident_attrib.value[0]: obj for obj in classes.Object}
+
+    for ident, item in tree_dict.items():
+        ident_list = ident.split(".")[:-1]
+        parent_obj = tree_dict.get(".".join(ident_list))
+
+        if parent_obj is not None:
+            parent_obj.add_child(item)
+
+def _build_aggregations() -> None:
+    def get_root_blocks() -> set[ExcelBlock]:
+        children = set()
+        for e_block in ExcelBlock:  # find all child blocks
+            if not e_block.is_predefined_pset:
+                children = set.union(e_block.aggregates, children)
+                children = set.union(e_block.inherits, children)
+
+        r_blocks = set()  # root blocks
+        for e_block in ExcelBlock:
+            if e_block not in children and not e_block.is_predefined_pset:
+                r_blocks.add(e_block)
+
+        return r_blocks
+
+    def link_child_nodes(aggregation: classes.Aggregation, block: ExcelBlock) -> None:
+        aggregate_list = block.aggregates
+        inherit_list = block.inherits
+
+        for aggregate_block in aggregate_list:
+            if aggregate_block.name != block.name:
+                if aggregate_block.is_predefined_pset:
+                    logging.error(f"[{block.name}] can't aggregate to {aggregate_block.name}")
                 else:
-                    logging.warning(f"[{aggregation.name}] recursive aggregation")
+                    child_aggreg = classes.Aggregation(aggregate_block.object)
+                    relationship = constants.AGGREGATION
+                    if aggregate_block in inherit_list:
+                        relationship += constants.INHERITANCE
 
-            for inherit_block in inherit_list:
-                if inherit_block not in aggregate_list:
-                    child_aggreg = classes.Aggregation(inherit_block.object)
-                    aggregation.add_child(child_aggreg, constants.INHERITANCE)
-                    link_child_nodes(child_aggreg, inherit_block)
+                    aggregation.add_child(child_aggreg, relationship)
+                    link_child_nodes(child_aggreg, aggregate_block)
+            else:
+                logging.warning(f"[{aggregation.name}] recursive aggregation")
 
-        root_blocks = get_root_blocks()
+        for inherit_block in inherit_list:
+            if inherit_block not in aggregate_list:
+                child_aggreg = classes.Aggregation(inherit_block.object)
+                aggregation.add_child(child_aggreg, constants.INHERITANCE)
+                link_child_nodes(child_aggreg, inherit_block)
 
-        for block in root_blocks:
-            aggregation = classes.Aggregation(block.object)
-            link_child_nodes(aggregation, block)
+    root_blocks = get_root_blocks()
 
+    for block in root_blocks:
+        aggregation = classes.Aggregation(block.object)
+        link_child_nodes(aggregation, block)
+
+def open_file(path: str,ws_name:str) -> None:
+
+    # TODO: add request for Identification Attribute
+    ExcelBlock._registry = list()
     with tempfile.TemporaryDirectory() as tmpdirname:
 
         new_path = os.path.join(tmpdirname, "excel.xlsx")
         shutil.copy2(path, new_path)
         book = openpyxl.load_workbook(new_path)
-        sheet = book.active
+        if ws_name not in book.sheetnames:
+            logging.error("Worksheet Name not in Workbook")
+            return
+        sheet = book[ws_name]
 
-        create_blocks()
-        create_items()
-        build_object_tree()
-        build_aggregations()
+        _create_blocks(sheet)
+        _create_items()
+        _build_object_tree()
+        _build_aggregations()
+
+def create_abbreviation_json(excel_path:str,export_path:str,ws_name:str) -> None:
+    ExcelBlock._registry = list()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        new_path = os.path.join(tmpdirname, "excel.xlsx")
+        shutil.copy2(excel_path, new_path)
+        book = openpyxl.load_workbook(new_path)
+        if ws_name not in book.sheetnames:
+            logging.error("Worksheet Name not in Workbook")
+            return
+        sheet = book[ws_name]
+
+        _create_blocks(sheet)
+        _create_items()
+        _build_object_tree()
+        _build_aggregations()
+        print("{")
+
+        d = {block.abbreviation:[block.ident_value,block.name] for block in ExcelBlock if block.ident_value is not None}
+        with open(export_path,"w") as file:
+            json.dump(d,file,indent=2)
