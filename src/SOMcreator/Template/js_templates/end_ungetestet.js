@@ -1,12 +1,11 @@
-id = desiteThis.ID()
-pset = "Allgemeine_Eigenschaften:"
-ident_attrib = "bauteilKlassifikation"
+﻿id = desiteThis.ID();
+pset = "Allgemeine_Eigenschaften:";
+ident_attrib = "bauteilKlassifikation";
 
-status = desiteAPI.getPropertyValue(id, "Check_State", "xs:string")
-objekttyp = desiteAPI.getPropertyValue(id, pset + ident_attrib, "xs:string")
-console.log(status)
+stat = desiteAPI.getPropertyValue(id, "Check_State", "xs:string");
+objekttyp = desiteAPI.getPropertyValue(id, pset + ident_attrib, "xs:string");
 
-if (status == "Ungeprüft") {
+if (stat == "Ungeprüft") {
     desiteResult.setCheckState('failed');
 
     check_status = "Failed"
