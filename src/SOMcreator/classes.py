@@ -104,11 +104,11 @@ class Project(object):
         self.seperator_status = True
         self.seperator = ","
 
-    def open(self, path):
+    def open(self, path:str) -> None:
         filehandling.read_xml(self, path)
 
-    def import_excel(self, path):
-        excel.open_file(path)
+    def import_excel(self, path:str,ws_name:str) -> None:
+        excel.open_file(path,ws_name)
 
     @property
     def objects(self) -> Iterator[Object]:
