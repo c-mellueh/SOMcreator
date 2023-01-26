@@ -332,7 +332,6 @@ def _build_aggregations() -> None:
 def open_file(path: str,ws_name:str) -> None:
 
     # TODO: add request for Identification Attribute
-    ExcelBlock._registry = list()
     with tempfile.TemporaryDirectory() as tmpdirname:
 
         new_path = os.path.join(tmpdirname, "excel.xlsx")
@@ -347,6 +346,8 @@ def open_file(path: str,ws_name:str) -> None:
         _create_items()
         _build_object_tree()
         _build_aggregations()
+
+    ExcelBlock._registry = list()
 
 def create_abbreviation_json(excel_path:str,export_path:str,ws_name:str) -> None:
     ExcelBlock._registry = list()
