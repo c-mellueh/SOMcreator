@@ -90,7 +90,6 @@ class Project(object):
     def clear(self):
         for obj in Object:
             obj.delete()
-            print(len(Object))
         for pset in PropertySet:
             pset.delete()
 

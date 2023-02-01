@@ -61,5 +61,8 @@ def create_mapping(excel_path: str, folder_path: str, project:classes.Project) -
     object_dict = {obj.ident_attrib.value[0]: obj for obj in project.objects if not obj.is_concept}
 
     for row in important_rows:
-        hz_nummer, hz_name, bauteilklass = map(lambda x: x.value, row)
+        values = list(map(lambda x: x.value, row))
+        if len(values)!= 4:
+            raise ValueError("Spaltenkonfiguration nicht korrekt!")
+        hz_nummer, hz_name, bauteilName,bauteilklass =values
         create_xml(hz_name, object_dict[bauteilklass])
