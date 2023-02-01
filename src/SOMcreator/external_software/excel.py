@@ -349,7 +349,7 @@ def open_file(path: str,ws_name:str) -> None:
 
     ExcelBlock._registry = list()
 
-def create_abbreviation_json(excel_path:str,export_path:str,ws_name:str) -> None:
+def create_abbreviation_json(excel_path:str,ws_name:str,export_path:str=None) -> dict[str:[str,str]]:
     ExcelBlock._registry = list()
     with tempfile.TemporaryDirectory() as tmpdirname:
         new_path = os.path.join(tmpdirname, "excel.xlsx")
@@ -367,5 +367,8 @@ def create_abbreviation_json(excel_path:str,export_path:str,ws_name:str) -> None
         print("{")
 
         d = {block.abbreviation:[block.ident_value,block.name] for block in ExcelBlock if block.ident_value is not None}
-        with open(export_path,"w") as file:
-            json.dump(d,file,indent=2)
+        if export_path is not None:
+            with open(export_path,"w") as file:
+                json.dump(d,file,indent=2)
+        return d
+
