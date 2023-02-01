@@ -30,6 +30,7 @@ class Project(object):
         self.seperator_status = True
         self.seperator = ","
 
+
     @property
     def changed(self) -> bool:
         def check_data():
@@ -510,6 +511,10 @@ class Object(Hirarchy):
 
     def __str__(self):
         return f"Object {self.name}"
+
+    def __lt__(self, other:Object):
+        return self.ident_value < other.ident_value
+
 
     @property
     def ifc_mapping(self) -> set[str]:
