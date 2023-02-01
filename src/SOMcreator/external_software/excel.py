@@ -11,7 +11,7 @@ from typing import Iterator
 import openpyxl
 from openpyxl.cell.cell import Cell
 from openpyxl.worksheet.worksheet import Worksheet
-
+from openpyxl import Workbook
 from .. import classes, constants
 from ..Template import IFC_4_1
 
@@ -371,4 +371,24 @@ def create_abbreviation_json(excel_path:str,ws_name:str,export_path:str=None) ->
             with open(export_path,"w") as file:
                 json.dump(d,file,indent=2)
         return d
+
+def export(project:classes.Project,path:str) -> None :
+    if not os.path.exists(os.path.dirname(path)):
+        raise FileNotFoundError(f"path {os.path.dirname(path)} DNE")
+
+    def fill_main_sheet(sheet:Worksheet) -> None:
+        sheet.title = "Uebersicht"
+        sheet.cell(1,1).value = "bauteilName"
+        sheet.cell(1,2).value = "bauteilKlassifikation"
+
+        for row,obj in enumerate(sorted(project.objects),start = 2):
+            sheet.cell(row,1).value = obj.name
+            sheet.cell(row,2).value = str(obj.ident_value)
+
+    workbook = Workbook()
+    sheet_main = workbook.active
+    fill_main_sheet(sheet_main)
+
+    workbook.save(path)
+
 
