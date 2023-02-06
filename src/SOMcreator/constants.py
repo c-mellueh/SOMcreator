@@ -70,7 +70,7 @@ IFC_MAPPINGS = "IfcMappings"
 IFC_MAPPING = "IfcMapping"
 CUSTOM_ATTRIBUTES = "CustomAttributes"
 CUSTOM_ATTRIBUTE = "CustomAttribute"
-
+ABBREVIATION = "abbreviation"
 #Mapping
 SHARED_PARAMETERS = "SharedParameters"
 REVIT_MAPPING = "revit_mapping"

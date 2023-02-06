@@ -234,7 +234,8 @@ class ExcelBlock(metaclass=ExcelIterator):
         obj.add_property_set(self.pset)
         obj.add_property_set(ident_pset)
         obj.ifc_mapping = self.ifc_mapping()
-        obj.custom_attribues["abbreviation"] = self.abbreviation
+        obj.custom_attribues[constants.ABBREVIATION] = self.abbreviation
+
         return obj
 
     def ifc_mapping(self) -> set[str]:
@@ -437,7 +438,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         sheet.cell(start_row+1,start_column+1).value = obj.ident_value
 
         sheet.cell(start_row + 2, start_column).value = "Kürzel"
-        sheet.cell(start_row+2,start_column+1).value = str(obj.custom_attribues.get("abbreviation"))
+        sheet.cell(start_row+2,start_column+1).value = str(obj.custom_attribues.get(constants.ABBREVIATION))
 
         sheet.cell(start_row+3,start_column).value = "Property"
         sheet.cell(start_row+3,start_column+1).value = "Propertyset"
