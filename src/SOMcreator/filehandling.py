@@ -40,7 +40,13 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
                     xml_ifc_mapping = etree.SubElement(xml_ifc_mappings, constants.IFC_MAPPING)
                     xml_ifc_mapping.text = mapping
                 pass
-
+            def add_custom_attributes(key,value,xml_parent):
+                xml_attribute = etree.SubElement(xml_parent,constants.CUSTOM_ATTRIBUTE)
+                xml_attribute.set(constants.NAME,key)
+                if isinstance(value,str):
+                    value = f"'{value}'"
+                xml_attribute.text = str(value)
+                pass
             xml_object = etree.SubElement(xml_parent, constants.OBJECT)
             xml_object.set(constants.NAME, obj.name)
             xml_object.set(constants.IDENTIFIER, str(obj.identifier))
@@ -58,6 +64,9 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
                 xml_script = etree.SubElement(xml_scripts, constants.SCRIPT)
                 xml_script.set(constants.NAME, script.name)
                 xml_script.text = script.code
+            xml_custom_attribute_grouping = etree.SubElement(xml_object, constants.CUSTOM_ATTRIBUTES)
+            for attribute_name,attribute_value in obj.custom_attribues.items():
+                add_custom_attributes(attribute_name,attribute_value,xml_custom_attribute_grouping)
 
         xml_grouping = etree.SubElement(xml_project, constants.OBJECTS)
         for obj in sorted(classes.Object, key=lambda x: x.name):
@@ -232,14 +241,23 @@ def read_xml(project: classes.Project, path: str = False) -> None:
                 script = classes.Script(name, obj)
                 script.code = code
 
+        def import_custom_attributes(xml_custom_attributes,obj:classes.Object):
+            for xml_attrib in xml_custom_attributes:
+                name = xml_attrib.attrib.get(constants.NAME)
+                value = xml_attrib.text
+                obj.custom_attribues[name] = eval(value)
+
         for xml_object in xml_objects:
             xml_property_group = xml_object.find(constants.PROPERTY_SETS)
             xml_script_group = xml_object.find(constants.SCRIPTS)
             xml_mapping_group = xml_object.find(constants.IFC_MAPPINGS)
+            xml_custom_attr_group = xml_object.find(constants.CUSTOM_ATTRIBUTES)
 
             property_sets, ident_attrib = import_property_sets(xml_property_group)
             name, parent, identifer, is_concept = get_obj_data(xml_object)
             obj = classes.Object(name, ident_attrib, identifier=identifer)
+            if xml_custom_attr_group is not None:
+                import_custom_attributes(xml_custom_attr_group,obj)
             ident_dict[identifer] = obj
 
             obj.ifc_mapping = {mapping.text for mapping in xml_mapping_group}

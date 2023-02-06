@@ -68,6 +68,8 @@ NODE = "Node"
 NODES = "Nodes"
 IFC_MAPPINGS = "IfcMappings"
 IFC_MAPPING = "IfcMapping"
+CUSTOM_ATTRIBUTES = "CustomAttributes"
+CUSTOM_ATTRIBUTE = "CustomAttribute"
 
 #Mapping
 SHARED_PARAMETERS = "SharedParameters"
