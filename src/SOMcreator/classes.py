@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import inspect
 import copy
 from typing import Iterator
 from uuid import uuid4
@@ -213,6 +213,12 @@ class PropertySet(Hirarchy):
             self.identifier = str(uuid4())
         self.changed = True
 
+    def __lt__(self,other):
+        if isinstance(other,PropertySet):
+            return self.name< other.name
+        else:
+            return self.name < other
+
     @property
     def is_predefined(self) -> bool:
         if self.object is None:
@@ -352,6 +358,12 @@ class Attribute(Hirarchy):
     def __str__(self) -> str:
         text = f"{self.property_set.name} : {self.name} = {self.value}"
         return text
+
+    def __lt__(self, other):
+        if isinstance(other,Attribute):
+            return self.name < other.name
+        else:
+            return self.name < other
 
     @property
     def revit_name(self) -> str:
@@ -496,6 +508,7 @@ class Object(Hirarchy):
         self._property_sets: list[PropertySet] = list()
         self._ident_attrib = ident_attrib
         self._aggregations: set[Aggregation] = set()
+        self.custom_attribues = {}
 
         if ifc_mapping is None:
             self._ifc_mapping = {"IfcBuildingElementProxy"}
