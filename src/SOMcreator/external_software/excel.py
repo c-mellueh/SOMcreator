@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+import json
 import logging
 import os.path
+import random
+import re
 import shutil
 import tempfile
-import re
-import json
+import uuid
 from typing import Iterator
 
 import openpyxl
+from openpyxl import Workbook
 from openpyxl.cell.cell import Cell
 from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.worksheet.table import Table,TableStyleInfo
+from openpyxl import styles
+from openpyxl.utils import get_column_letter
 
 from .. import classes, constants
 from ..Template import IFC_4_1
@@ -36,6 +42,13 @@ def find_by_abbreviation(abbreviation: str) -> ExcelBlock | None:
     excel_block_dict: dict[str, ExcelBlock] = {block.abbreviation.upper(): block for block in ExcelBlock}
     return excel_block_dict.get(abbreviation.upper())
 
+
+def autoadjust_column_widths(sheet:Worksheet) -> None:
+    for i in range(len(list(sheet.columns))):
+        column_letter = get_column_letter(i+1)
+        column = sheet[column_letter]
+        width = max([len(cell.value) for cell in column if cell.value is not None], default=2)
+        sheet.column_dimensions[column_letter].width = width
 
 class ExcelIterator(type):
     def __iter__(cls: ExcelBlock) -> Iterator[ExcelBlock]:
@@ -221,6 +234,8 @@ class ExcelBlock(metaclass=ExcelIterator):
         obj.add_property_set(self.pset)
         obj.add_property_set(ident_pset)
         obj.ifc_mapping = self.ifc_mapping()
+        obj.custom_attribues[constants.ABBREVIATION] = self.abbreviation
+
         return obj
 
     def ifc_mapping(self) -> set[str]:
@@ -241,6 +256,7 @@ class ExcelBlock(metaclass=ExcelIterator):
                 logging.info(f"[{self.name}]: '{string}' not in IFC 4.1 Specification")
         return set(string_list)
 
+
 def _create_blocks(sheet) -> None:
     """create Excel Blocks"""
     excel_blocks = set()
@@ -255,6 +271,7 @@ def _create_blocks(sheet) -> None:
                         excel_blocks.add(ExcelBlock(cell, sheet))
                     else:
                         logging.error(f"{sheet.cell(cell.row + 1, cell.column)} hat den Wert 'name'")
+
 
 def _create_items() -> None:
     """create Objects and PropertySets"""
@@ -273,6 +290,7 @@ def _create_items() -> None:
             new_pset = pset.create_child(pset.name)
             block.object.add_property_set(new_pset)
 
+
 def _build_object_tree() -> None:
     tree_dict: dict[str, classes.Object] = {obj.ident_attrib.value[0]: obj for obj in classes.Object}
 
@@ -282,6 +300,7 @@ def _build_object_tree() -> None:
 
         if parent_obj is not None:
             parent_obj.add_child(item)
+
 
 def _build_aggregations() -> None:
     def get_root_blocks() -> set[ExcelBlock]:
@@ -329,11 +348,10 @@ def _build_aggregations() -> None:
         aggregation = classes.Aggregation(block.object)
         link_child_nodes(aggregation, block)
 
-def open_file(path: str,ws_name:str) -> None:
 
+def open_file(path: str, ws_name: str) -> None:
     # TODO: add request for Identification Attribute
     with tempfile.TemporaryDirectory() as tmpdirname:
-
         new_path = os.path.join(tmpdirname, "excel.xlsx")
         shutil.copy2(path, new_path)
         book = openpyxl.load_workbook(new_path)
@@ -349,7 +367,8 @@ def open_file(path: str,ws_name:str) -> None:
 
     ExcelBlock._registry = list()
 
-def create_abbreviation_json(excel_path:str,ws_name:str,export_path:str=None) -> dict[str:[str,str]]:
+
+def create_abbreviation_json(excel_path: str, ws_name: str, export_path: str = None) -> dict[str:[str, str]]:
     ExcelBlock._registry = list()
     with tempfile.TemporaryDirectory() as tmpdirname:
         new_path = os.path.join(tmpdirname, "excel.xlsx")
@@ -366,9 +385,130 @@ def create_abbreviation_json(excel_path:str,ws_name:str,export_path:str=None) ->
         _build_aggregations()
         print("{")
 
-        d = {block.abbreviation:[block.ident_value,block.name] for block in ExcelBlock if block.ident_value is not None}
+        d = {block.abbreviation: [block.ident_value, block.name] for block in ExcelBlock if
+             block.ident_value is not None}
         if export_path is not None:
-            with open(export_path,"w") as file:
-                json.dump(d,file,indent=2)
+            with open(export_path, "w") as file:
+                json.dump(d, file, indent=2)
         return d
 
+
+def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {}) -> None:
+
+    if not os.path.exists(os.path.dirname(path)):
+        raise FileNotFoundError(f"path {os.path.dirname(path)} DNE")
+
+    NA  = "name"
+    OBJ = "objects"
+    TABLE_STYLE = "TableStyleLight1"
+    def fill_main_sheet(sheet: Worksheet) -> None:
+        sheet.title = "Uebersicht"
+        sheet.cell(1, 1).value = "bauteilName"
+        sheet.cell(1, 2).value = "bauteilKlassifikation"
+        row = 1
+        for row, obj in enumerate(sorted(project.objects), start=2):
+            sheet.cell(row, 1).value = obj.name
+            sheet.cell(row, 2).value = str(obj.ident_value)
+
+        table_start = sheet.cell(1,1).coordinate
+        table_end = sheet.cell(row,2).coordinate
+        table_range = f"{table_start}:{table_end}"
+        table = Table(displayName="Uebersicht",ref=table_range )
+        style = TableStyleInfo(name=TABLE_STYLE, showFirstColumn=False,
+                               showLastColumn=False, showRowStripes=True, showColumnStripes=False)
+        table.tableStyleInfo = style
+        sheet.add_table(table)
+        autoadjust_column_widths(sheet)
+
+    def filter_to_sheets() -> dict:
+        d = {obj.ident_value: {NA:obj.name,OBJ:[]} for obj in project.objects if len(obj.ident_value.split(".")) == 1}
+        for ident,name in mapping_dict.items():
+            d[ident] = {NA:name,OBJ:[]}
+
+        for obj in project.objects:
+            group = obj.ident_value.split(".")[0]
+            d[group][OBJ].append(obj)
+        return d
+
+    def create_object_entry(obj:classes.Object, sheet, start_row, start_column,table_index):
+        sheet.cell(start_row,start_column).value = "bauteilName"
+        sheet.cell(start_row,start_column+1).value = obj.name
+
+        sheet.cell(start_row+1, start_column).value = "bauteilKlassifikation"
+        sheet.cell(start_row+1,start_column+1).value = obj.ident_value
+
+        sheet.cell(start_row + 2, start_column).value = "Kürzel"
+        sheet.cell(start_row+2,start_column+1).value = str(obj.custom_attribues.get(constants.ABBREVIATION))
+
+        sheet.cell(start_row+3,start_column).value = "Property"
+        sheet.cell(start_row+3,start_column+1).value = "Propertyset"
+        sheet.cell(start_row+3,start_column+2).value = "Wertebereich"
+
+        draw_border(sheet, [start_row, start_row+2], [start_column, start_column+2])
+        fill_grey(sheet, [start_row, start_row+2], [start_column, start_column+2])
+
+        pset_start_row = start_row+4
+        index = 0
+        for property_set in sorted(obj.property_sets):
+            for attribute in sorted(property_set.attributes):
+                sheet.cell(pset_start_row+index,start_column).value = attribute.name
+                sheet.cell(pset_start_row+index,start_column+1).value = property_set.name
+
+                if not attribute.value:
+                    attrib_val = ""
+                else:
+                    attrib_val = ";".join(attribute.value)
+                sheet.cell(pset_start_row+index,start_column+2).value = attrib_val
+                index+=1
+
+        table_start = sheet.cell(pset_start_row-1,start_column).coordinate
+        table_end = sheet.cell(pset_start_row+index-1,start_column+2).coordinate
+        table_range = f"{table_start}:{table_end}"
+        table = Table(displayName=f"Tabelle_{str(table_index).zfill(5)}",ref=table_range )
+        style = TableStyleInfo(name=TABLE_STYLE, showFirstColumn=False,
+                               showLastColumn=False, showRowStripes=True, showColumnStripes=False)
+        table.tableStyleInfo = style
+        sheet.add_table(table)
+
+    def draw_border(sheet:Worksheet,row_range:[int,int],column_range:[int,int]):
+        for row in range(row_range[0],row_range[1]+1):
+            for column in range(column_range[0],column_range[1]+1):
+                left_side = styles.Side(border_style="none",color = "FF000000")
+                right_side = styles.Side(border_style="none", color="FF000000")
+                top_side = styles.Side(border_style="none", color="FF000000")
+                bottom_side = styles.Side(border_style="none", color="FF000000")
+                if column == column_range[0]:
+                    left_side = styles.Side(border_style="thick", color="FF000000")
+
+                if column == column_range[1]:
+                    right_side = styles.Side(border_style="thick", color="FF000000")
+
+                if row == row_range[0]:
+                    top_side = styles.Side(border_style="thick", color="FF000000")
+                if row == row_range[1]:
+                    bottom_side = styles.Side(border_style="thick", color="FF000000")
+                sheet.cell(row,column).border = styles.Border(left = left_side,right = right_side,top = top_side,bottom = bottom_side)
+
+    def fill_grey(sheet:Worksheet,row_range:[int,int],column_range:[int,int]):
+        fill = styles.PatternFill(fill_type="solid", start_color="d9d9d9")
+        for row in range(row_range[0], row_range[1] + 1):
+            for column in range(column_range[0], column_range[1] + 1):
+                sheet.cell(row, column).fill = fill
+
+    workbook = Workbook()
+
+    sheet_main = workbook.active
+    fill_main_sheet(sheet_main)
+
+    sheet_dict = filter_to_sheets()
+    table_counter = 1
+    for ident,d in sheet_dict.items():
+        obj_name = d[NA]
+        objects = d[OBJ]
+        work_sheet = workbook.create_sheet(f"{obj_name} ({ident})")
+        for counter,obj in enumerate(sorted(objects)):
+            column = 1+counter*4
+            create_object_entry(obj,work_sheet,1,column,table_counter)
+            table_counter+=1
+        autoadjust_column_widths(work_sheet)
+    workbook.save(path)
