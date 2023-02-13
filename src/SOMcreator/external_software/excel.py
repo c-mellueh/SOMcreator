@@ -290,7 +290,14 @@ def _create_items() -> None:
             new_pset = pset.create_child(pset.name)
             block.object.add_property_set(new_pset)
 
-
+    #for SOM of Deutsche Bahn
+    for obj in classes.Object:
+        prop = obj.get_property_set_by_name("Allgemeine Eigenschaften")
+        if prop is None:
+            continue
+        bn = prop.get_attribute_by_name("bauteilName")
+        if bn is not None:
+            bn.value = [obj.name]
 def _build_object_tree() -> None:
     tree_dict: dict[str, classes.Object] = {obj.ident_attrib.value[0]: obj for obj in classes.Object}
 
