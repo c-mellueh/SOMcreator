@@ -477,8 +477,12 @@ class Attribute(Hirarchy):
 
         if equal:
             return True
+        else:
+            return False
 
     def delete(self) -> None:
+        if self in self._registry:
+            self._registry.remove(self)
         self.property_set.remove_attribute(self)
         for child in self.children:
             child.delete()
