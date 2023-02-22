@@ -162,7 +162,7 @@ class ExcelBlock(metaclass=ExcelIterator):
 
         return inherit_blocks
 
-    def create_attributes(self) -> list[classes.Attribute]:
+    def create_attributes(self) -> set[classes.Attribute]:
         """
            Iterate over Attributes
            Create Them and find special Datatypes
@@ -195,7 +195,7 @@ class ExcelBlock(metaclass=ExcelIterator):
         entry = self.sheet.cell(row=row, column=self.base_cell.column)
 
         cell_list = [block.base_cell for block in ExcelBlock]
-        attributes: list[classes.Attribute] = list()
+        attributes: set[classes.Attribute] = set()
 
         while entry.value is not None and entry not in cell_list and entry.value != "-":
             data_type_text = self.sheet.cell(row=entry.row, column=entry.column + 2).value
@@ -206,7 +206,7 @@ class ExcelBlock(metaclass=ExcelIterator):
                                           data_type=data_type)
             if alternative_name and alternative_name is not None:
                 attribute.revit_name = alternative_name
-            attributes.append(attribute)
+            attributes.add(attribute)
 
             if special:
                 logging.info(
