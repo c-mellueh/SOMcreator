@@ -9,6 +9,7 @@ ARROW_WIDTH = ARROW_HEIGHT/2
 AGGREGATION = 1
 INHERITANCE = 2
 
+DESCRIPTION = "description"
 
 VALUE = "Value"
 FORMAT = "Format"

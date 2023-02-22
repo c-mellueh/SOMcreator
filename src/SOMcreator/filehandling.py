@@ -51,6 +51,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
             xml_object.set(constants.NAME, obj.name)
             xml_object.set(constants.IDENTIFIER, str(obj.identifier))
             xml_object.set("is_concept", str(obj.is_concept))
+            xml_object.set(constants.DESCRIPTION,obj.description)
             add_parent(xml_object, obj)
 
             add_ifc_mapping()
@@ -94,6 +95,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
             xml_attribute.set(constants.IDENTIFIER, str(attribute.identifier))
             xml_attribute.set(constants.CHILD_INHERITS_VALUE, str(attribute.child_inherits_values))
             xml_attribute.set(constants.REVIT_MAPPING, str(attribute.revit_name))
+            xml_attribute.set(constants.DESCRIPTION, attribute.description)
             add_parent(xml_attribute, attribute)
             obj = attribute.property_set.object
             if obj is not None and attribute == obj.ident_attrib:
@@ -107,6 +109,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
         xml_pset = etree.SubElement(xml_parent, constants.PROPERTY_SET)
         xml_pset.set(constants.NAME, property_set.name)
         xml_pset.set(constants.IDENTIFIER, str(property_set.identifier))
+        xml_pset.set(constants.DESCRIPTION, property_set.description)
         add_parent(xml_pset, property_set)
 
         xml_attributes = etree.SubElement(xml_pset, constants.ATTRIBUTES)
@@ -195,7 +198,8 @@ def read_xml(project: classes.Project, path: str = False) -> None:
                 is_identifier = attribs.get(constants.IS_IDENTIFIER)
                 child_inh = string_to_bool(attribs.get(constants.CHILD_INHERITS_VALUE))
                 value = transform_new_values(xml_attribute)
-                attrib = classes.Attribute(property_set, name, value, value_type, data_type, child_inh, identifier)
+                description = attribs.get(constants.DESCRIPTION)
+                attrib = classes.Attribute(property_set, name, value, value_type, data_type, child_inh, identifier,description)
                 revit_mapping = attribs.get(constants.REVIT_MAPPING)
                 if revit_mapping == constants.NONE:
                     revit_mapping = attrib.name
@@ -211,7 +215,8 @@ def read_xml(project: classes.Project, path: str = False) -> None:
             attribs = xml_property_set.attrib
             name = attribs.get(constants.NAME)
             identifier = attribs.get(constants.IDENTIFIER)
-            property_set = classes.PropertySet(name, obj=None, identifier=identifier)
+            description = attribs.get(constants.DESCRIPTION)
+            property_set = classes.PropertySet(name, obj=None, identifier=identifier,description=description)
 
             xml_attrib_group = xml_property_set.find(constants.ATTRIBUTES)
             ident_value = import_attributes(xml_attrib_group, property_set)
@@ -229,8 +234,8 @@ def read_xml(project: classes.Project, path: str = False) -> None:
             obj_parent: str = xml_object.attrib.get(constants.PARENT)
             identifier: str = xml_object.attrib.get(constants.IDENTIFIER)
             obj_is_concept: str = xml_object.attrib.get(constants.IS_CONCEPT)
-
-            return obj_name, obj_parent, identifier, string_to_bool(obj_is_concept)
+            description =xml_object.attrib.get(constants.DESCRIPTION)
+            return obj_name, obj_parent, identifier, string_to_bool(obj_is_concept),description
 
         def import_scripts(xml_scripts: etree.Element | None, obj: classes.Object) -> None:
             if xml_scripts is None:
@@ -254,8 +259,8 @@ def read_xml(project: classes.Project, path: str = False) -> None:
             xml_custom_attr_group = xml_object.find(constants.CUSTOM_ATTRIBUTES)
 
             property_sets, ident_attrib = import_property_sets(xml_property_group)
-            name, parent, identifer, is_concept = get_obj_data(xml_object)
-            obj = classes.Object(name, ident_attrib, identifier=identifer)
+            name, parent, identifer, is_concept,description = get_obj_data(xml_object)
+            obj = classes.Object(name, ident_attrib, identifier=identifer,description=description)
             if xml_custom_attr_group is not None:
                 import_custom_attributes(xml_custom_attr_group,obj)
             ident_dict[identifer] = obj

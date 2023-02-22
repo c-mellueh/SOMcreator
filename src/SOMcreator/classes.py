@@ -129,7 +129,7 @@ class Project(object):
 
 class Hirarchy(object, metaclass=IterRegistry):
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str,description:str|None = None) -> None:
 
         self._parent = None
         self._children = set()
@@ -139,6 +139,17 @@ class Hirarchy(object, metaclass=IterRegistry):
             constants.SHARED_PARAMETERS: True,
             constants.IFC_MAPPING: True
         }
+        self._description = ""
+        if description is not None:
+            self.description = description
+
+    @property
+    def description(self):
+        return self._description
+
+    @description.setter
+    def description(self, value):
+        self._description = value
 
     @property
     def mapping_dict(self) -> dict[str, bool]:
@@ -203,8 +214,8 @@ class Hirarchy(object, metaclass=IterRegistry):
 class PropertySet(Hirarchy):
     _registry: set[PropertySet] = set()
 
-    def __init__(self, name: str, obj: Object = None, identifier: str = None) -> None:
-        super(PropertySet, self).__init__(name)
+    def __init__(self, name: str, obj: Object = None, identifier: str = None,description:None|str = None) -> None:
+        super(PropertySet, self).__init__(name,description)
         self._attributes = set()
         self._object = obj
         self._registry.add(self)
@@ -337,9 +348,9 @@ class Attribute(Hirarchy):
 
     def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: int,
                  data_type: str = "xs:string",
-                 child_inherits_values: bool = False, identifier: str = None):
+                 child_inherits_values: bool = False, identifier: str = None,description:None|str = None):
 
-        super(Attribute, self).__init__(name=name)
+        super(Attribute, self).__init__(name,description)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -350,6 +361,7 @@ class Attribute(Hirarchy):
         self.changed = True
         self._child_inherits_values = child_inherits_values
         self.identifier = identifier
+
         if self.identifier is None:
             self.identifier = str(uuid4())
         if property_set is not None:
@@ -504,8 +516,8 @@ class Object(Hirarchy):
     _registry: set[Object] = set()
 
     def __init__(self, name: str, ident_attrib: [Attribute, str], identifier: str = None,
-                 ifc_mapping: set[str] | None = None) -> None:
-        super(Object, self).__init__(name=name)
+                 ifc_mapping: set[str] | None = None,description:None|str = None) -> None:
+        super(Object, self).__init__(name,description)
         self._registry.add(self)
 
         self._scripts: list[Script] = list()
@@ -668,8 +680,8 @@ class Aggregation(Hirarchy):
     def __str__(self):
         return self.name
 
-    def __init__(self, obj: Object, uuid: str | None = None):
-        super(Aggregation, self).__init__(name=obj.name)
+    def __init__(self, obj: Object, uuid: str | None = None,description:None|str = None):
+        super(Aggregation, self).__init__(obj.name,description)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
