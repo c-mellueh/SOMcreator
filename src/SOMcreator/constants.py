@@ -10,6 +10,7 @@ AGGREGATION = 1
 INHERITANCE = 2
 
 DESCRIPTION = "description"
+OPTIONAL = "optional"
 
 VALUE = "Value"
 FORMAT = "Format"

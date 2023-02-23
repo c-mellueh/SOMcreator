@@ -1,11 +1,14 @@
 from __future__ import annotations
-import inspect
+
 import copy
 from typing import Iterator
 from uuid import uuid4
+
 from anytree import AnyNode
+
 from . import constants, filehandling
 from .external_software import excel
+
 
 # Add child to Parent leads to reverse
 
@@ -29,7 +32,6 @@ class Project(object):
         self.name = name
         self.seperator_status = True
         self.seperator = ","
-
 
     @property
     def changed(self) -> bool:
@@ -104,11 +106,11 @@ class Project(object):
         self.seperator_status = True
         self.seperator = ","
 
-    def open(self, path:str) -> None:
+    def open(self, path: str) -> None:
         filehandling.read_xml(self, path)
 
-    def import_excel(self, path:str,ws_name:str) -> None:
-        excel.open_file(path,ws_name)
+    def import_excel(self, path: str, ws_name: str) -> None:
+        excel.open_file(path, ws_name)
 
     @property
     def objects(self) -> Iterator[Object]:
@@ -127,9 +129,10 @@ class Project(object):
             create_childen(n)
         return base
 
+
 class Hirarchy(object, metaclass=IterRegistry):
 
-    def __init__(self, name: str,description:str|None = None) -> None:
+    def __init__(self, name: str, description: str | None = None, optional: bool | None = None) -> None:
 
         self._parent = None
         self._children = set()
@@ -142,6 +145,25 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._description = ""
         if description is not None:
             self.description = description
+
+        self._optional = False
+        if optional is not None:
+            self._optional = optional
+
+    @property
+    def optional_wo_hirarchy(self) ->bool:
+        return self._optional
+
+    @property
+    def optional(self) -> bool:
+        if self.parent is not None:
+            if self.parent.optional:
+                return True
+        return self._optional
+
+    @optional.setter
+    def optional(self, value: bool) -> None:
+        self._optional = value
 
     @property
     def description(self):
@@ -214,8 +236,9 @@ class Hirarchy(object, metaclass=IterRegistry):
 class PropertySet(Hirarchy):
     _registry: set[PropertySet] = set()
 
-    def __init__(self, name: str, obj: Object = None, identifier: str = None,description:None|str = None) -> None:
-        super(PropertySet, self).__init__(name,description)
+    def __init__(self, name: str, obj: Object = None, identifier: str = None, description: None | str = None,
+                 optional: None | bool = None) -> None:
+        super(PropertySet, self).__init__(name, description, optional)
         self._attributes = set()
         self._object = obj
         self._registry.add(self)
@@ -224,9 +247,9 @@ class PropertySet(Hirarchy):
             self.identifier = str(uuid4())
         self.changed = True
 
-    def __lt__(self,other):
-        if isinstance(other,PropertySet):
-            return self.name< other.name
+    def __lt__(self, other):
+        if isinstance(other, PropertySet):
+            return self.name < other.name
         else:
             return self.name < other
 
@@ -348,9 +371,10 @@ class Attribute(Hirarchy):
 
     def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: int,
                  data_type: str = "xs:string",
-                 child_inherits_values: bool = False, identifier: str = None,description:None|str = None):
+                 child_inherits_values: bool = False, identifier: str = None, description: None | str = None,
+                 optional: None | bool = None):
 
-        super(Attribute, self).__init__(name,description)
+        super(Attribute, self).__init__(name, description, optional)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -372,7 +396,7 @@ class Attribute(Hirarchy):
         return text
 
     def __lt__(self, other):
-        if isinstance(other,Attribute):
+        if isinstance(other, Attribute):
             return self.name < other.name
         else:
             return self.name < other
@@ -516,8 +540,9 @@ class Object(Hirarchy):
     _registry: set[Object] = set()
 
     def __init__(self, name: str, ident_attrib: [Attribute, str], identifier: str = None,
-                 ifc_mapping: set[str] | None = None,description:None|str = None) -> None:
-        super(Object, self).__init__(name,description)
+                 ifc_mapping: set[str] | None = None, description: None | str = None,
+                 optional: None | bool = None) -> None:
+        super(Object, self).__init__(name, description, optional)
         self._registry.add(self)
 
         self._scripts: list[Script] = list()
@@ -541,9 +566,8 @@ class Object(Hirarchy):
     def __str__(self):
         return f"Object {self.name}"
 
-    def __lt__(self, other:Object):
+    def __lt__(self, other: Object):
         return self.ident_value < other.ident_value
-
 
     @property
     def ifc_mapping(self) -> set[str]:
@@ -680,8 +704,8 @@ class Aggregation(Hirarchy):
     def __str__(self):
         return self.name
 
-    def __init__(self, obj: Object, uuid: str | None = None,description:None|str = None):
-        super(Aggregation, self).__init__(obj.name,description)
+    def __init__(self, obj: Object, uuid: str | None = None, description: None | str = None,optional: None | bool = None):
+        super(Aggregation, self).__init__(obj.name, description,optional)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())

@@ -21,8 +21,8 @@ from openpyxl.utils import get_column_letter
 from .. import classes, constants
 from ..Template import IFC_4_1
 
-ident_pset_name = "Allgemeine Eigenschaften"
-ident_attrib_name = "bauteilKlassifikation"
+IDENT_PSET_NAME = "Allgemeine Eigenschaften"
+IDENT_ATTRIB_NAME = "bauteilKlassifikation"
 
 
 def split_string(text: str) -> list[str] | None:
@@ -125,7 +125,7 @@ class ExcelBlock(metaclass=ExcelIterator):
             if abbrev != "-":
                 parent_block = find_by_abbreviation(abbrev)
                 if parent_block is not None:
-                    if parent_block.name != ident_pset_name:
+                    if parent_block.name != IDENT_PSET_NAME:
                         parents.add(parent_block)
                         parents = set.union(parent_block.parent_classes, parents)
                 else:
@@ -168,8 +168,7 @@ class ExcelBlock(metaclass=ExcelIterator):
            Create Them and find special Datatypes
            """
 
-        def transform_value_types(value: str) -> (str, bool):
-            special = False
+        def transform_value_types(attribute_name,value: str) -> (str, bool):
             if value is not None:
                 if value.lower() in ["string", "str"]:
                     data_type = constants.XS_STRING
@@ -180,12 +179,13 @@ class ExcelBlock(metaclass=ExcelIterator):
                 elif value.lower() in ["int", "integer"]:
                     data_type = constants.XS_INT
                 else:
-                    special = True
+                    text = f"{self.name}: Datatype '{value}' of Attribute {attribute_name} can't be interpreted. Use {constants.XS_STRING} instead "
+                    logging.info(text)
                     data_type = constants.XS_STRING
             else:
                 data_type = constants.XS_STRING
 
-            return data_type, special
+            return data_type
 
         if self.is_predefined_pset:
             row = self.base_cell.row + 4
@@ -199,41 +199,54 @@ class ExcelBlock(metaclass=ExcelIterator):
 
         while entry.value is not None and entry not in cell_list and entry.value != "-":
             data_type_text = self.sheet.cell(row=entry.row, column=entry.column + 2).value
-            data_type, special = transform_value_types(data_type_text)
-            attribute_name = entry.value
+            data_type = transform_value_types(entry.value,data_type_text)
+            attribute_name:str = entry.value
             alternative_name = self.sheet.cell(row=entry.row, column=entry.column + 1).value
+
+            optional = False
+            if attribute_name.startswith("*"):
+                optional = True
+                attribute_name = attribute_name[1:]
+
             attribute = classes.Attribute(self.pset, attribute_name, [], constants.VALUE_TYPE_LOOKUP[constants.LIST],
-                                          data_type=data_type)
+                                          data_type=data_type,optional=optional)
             if alternative_name and alternative_name is not None:
                 attribute.revit_name = alternative_name
             attributes.add(attribute)
-
-            if special:
-                logging.info(
-                    f"[{entry.value}] Property: {self.name}:{attribute_name} datatype '{data_type_text}' unbekannt")
-                pass
 
             entry = self.sheet.cell(row=entry.row + 1, column=entry.column)
 
         return attributes
 
     def create_predefined_pset(self) -> None:
-        self.pset = classes.PropertySet(self.name)
+        optional = False
+        pset_name = self.name
+        if self.name.startswith("*"):
+            optional = True
+            pset_name = pset_name[1:]
+        self.pset = classes.PropertySet(pset_name,optional=optional)
         self.pset.attributes = self.create_attributes()
 
     def create_object(self) -> classes.Object:
-        self.pset = classes.PropertySet(self.name)
+        pset_name = self.name
+        if self.name.startswith("*"):
+            pset_name = pset_name[1:]
+        self.pset = classes.PropertySet(pset_name)
         self.pset.attributes = self.create_attributes()
         predef_psets: dict[str, ExcelBlock] = {block.name: block for block in ExcelBlock if block.is_predefined_pset}
-        parent_pset = predef_psets.get(ident_pset_name)
+        parent_pset = predef_psets.get(IDENT_PSET_NAME)
 
-        ident_pset = parent_pset.pset.create_child(ident_pset_name)
-        ident_attrib = ident_pset.get_attribute_by_name(ident_attrib_name)
+        ident_pset = parent_pset.pset.create_child(IDENT_PSET_NAME)
+        ident_attrib = ident_pset.get_attribute_by_name(IDENT_ATTRIB_NAME)
         ident_attrib.value = [self.ident_value]
-        obj = classes.Object(self.name, ident_attrib)
+        optional = False
+        obj_name = self.name
+        if self.name.startswith("*"):
+            optional = True
+            obj_name= obj_name[1:]
+        obj = classes.Object(obj_name, ident_attrib,ifc_mapping=self.ifc_mapping(),optional=optional)
         obj.add_property_set(self.pset)
         obj.add_property_set(ident_pset)
-        obj.ifc_mapping = self.ifc_mapping()
         obj.custom_attribues[constants.ABBREVIATION] = self.abbreviation
 
         return obj
