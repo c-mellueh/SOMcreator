@@ -1,12 +1,12 @@
 from __future__ import annotations
-from .Template import MAPPING_TEMPLATE, HOME_DIR
-import jinja2
-import os
+
 from typing import Type
 
+import jinja2
 from lxml import etree
 
 from . import constants, classes
+from .Template import MAPPING_TEMPLATE, HOME_DIR
 
 
 def string_to_bool(text: str) -> bool | None:
@@ -40,18 +40,21 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
                     xml_ifc_mapping = etree.SubElement(xml_ifc_mappings, constants.IFC_MAPPING)
                     xml_ifc_mapping.text = mapping
                 pass
-            def add_custom_attributes(key,value,xml_parent):
-                xml_attribute = etree.SubElement(xml_parent,constants.CUSTOM_ATTRIBUTE)
-                xml_attribute.set(constants.NAME,key)
-                if isinstance(value,str):
+
+            def add_custom_attributes(key, value, xml_parent):
+                xml_attribute = etree.SubElement(xml_parent, constants.CUSTOM_ATTRIBUTE)
+                xml_attribute.set(constants.NAME, key)
+                if isinstance(value, str):
                     value = f"'{value}'"
                 xml_attribute.text = str(value)
                 pass
+
             xml_object = etree.SubElement(xml_parent, constants.OBJECT)
             xml_object.set(constants.NAME, obj.name)
             xml_object.set(constants.IDENTIFIER, str(obj.identifier))
             xml_object.set("is_concept", str(obj.is_concept))
-            xml_object.set(constants.DESCRIPTION,obj.description)
+            xml_object.set(constants.DESCRIPTION, obj.description)
+            xml_object.set(constants.OPTIONAL, str(obj.optional_wo_hirarchy))
             add_parent(xml_object, obj)
 
             add_ifc_mapping()
@@ -66,8 +69,8 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
                 xml_script.set(constants.NAME, script.name)
                 xml_script.text = script.code
             xml_custom_attribute_grouping = etree.SubElement(xml_object, constants.CUSTOM_ATTRIBUTES)
-            for attribute_name,attribute_value in obj.custom_attribues.items():
-                add_custom_attributes(attribute_name,attribute_value,xml_custom_attribute_grouping)
+            for attribute_name, attribute_value in obj.custom_attribues.items():
+                add_custom_attributes(attribute_name, attribute_value, xml_custom_attribute_grouping)
 
         xml_grouping = etree.SubElement(xml_project, constants.OBJECTS)
         for obj in sorted(classes.Object, key=lambda x: x.name):
@@ -96,6 +99,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
             xml_attribute.set(constants.CHILD_INHERITS_VALUE, str(attribute.child_inherits_values))
             xml_attribute.set(constants.REVIT_MAPPING, str(attribute.revit_name))
             xml_attribute.set(constants.DESCRIPTION, attribute.description)
+            xml_attribute.set(constants.OPTIONAL,str(attribute.optional_wo_hirarchy))
             add_parent(xml_attribute, attribute)
             obj = attribute.property_set.object
             if obj is not None and attribute == obj.ident_attrib:
@@ -110,6 +114,7 @@ def build_xml(project: classes.Project) -> etree.ElementTree:
         xml_pset.set(constants.NAME, property_set.name)
         xml_pset.set(constants.IDENTIFIER, str(property_set.identifier))
         xml_pset.set(constants.DESCRIPTION, property_set.description)
+        xml_pset.set(constants.OPTIONAL,str(property_set.optional_wo_hirarchy))
         add_parent(xml_pset, property_set)
 
         xml_attributes = etree.SubElement(xml_pset, constants.ATTRIBUTES)
@@ -196,10 +201,12 @@ def read_xml(project: classes.Project, path: str = False) -> None:
                 data_type = attribs.get(constants.DATA_TYPE)
                 value_type = attribs.get(constants.VALUE_TYPE)
                 is_identifier = attribs.get(constants.IS_IDENTIFIER)
+                optional = string_to_bool(attribs.get(constants.OPTIONAL))
                 child_inh = string_to_bool(attribs.get(constants.CHILD_INHERITS_VALUE))
                 value = transform_new_values(xml_attribute)
                 description = attribs.get(constants.DESCRIPTION)
-                attrib = classes.Attribute(property_set, name, value, value_type, data_type, child_inh, identifier,description)
+                attrib = classes.Attribute(property_set, name, value, value_type, data_type, child_inh, identifier,
+                                           description, optional)
                 revit_mapping = attribs.get(constants.REVIT_MAPPING)
                 if revit_mapping == constants.NONE:
                     revit_mapping = attrib.name
@@ -216,7 +223,8 @@ def read_xml(project: classes.Project, path: str = False) -> None:
             name = attribs.get(constants.NAME)
             identifier = attribs.get(constants.IDENTIFIER)
             description = attribs.get(constants.DESCRIPTION)
-            property_set = classes.PropertySet(name, obj=None, identifier=identifier,description=description)
+            optional = string_to_bool(attribs.get(constants.OPTIONAL))
+            property_set = classes.PropertySet(name, None, identifier, description,optional)
 
             xml_attrib_group = xml_property_set.find(constants.ATTRIBUTES)
             ident_value = import_attributes(xml_attrib_group, property_set)
@@ -229,13 +237,15 @@ def read_xml(project: classes.Project, path: str = False) -> None:
     def import_objects(xml_objects: list[etree._Element]):
 
         def get_obj_data(xml_object: etree._Element) -> (str, str, str, bool):
+            attribs = xml_object.attrib
+            obj_name: str = attribs.get(constants.NAME)
+            obj_parent: str = attribs.get(constants.PARENT)
+            identifier: str = attribs.get(constants.IDENTIFIER)
+            obj_is_concept: str = attribs.get(constants.IS_CONCEPT)
+            description = attribs.get(constants.DESCRIPTION)
+            optional = string_to_bool(attribs.get(constants.OPTIONAL))
 
-            obj_name: str = xml_object.attrib.get(constants.NAME)
-            obj_parent: str = xml_object.attrib.get(constants.PARENT)
-            identifier: str = xml_object.attrib.get(constants.IDENTIFIER)
-            obj_is_concept: str = xml_object.attrib.get(constants.IS_CONCEPT)
-            description =xml_object.attrib.get(constants.DESCRIPTION)
-            return obj_name, obj_parent, identifier, string_to_bool(obj_is_concept),description
+            return obj_name, obj_parent, identifier, string_to_bool(obj_is_concept), description,optional
 
         def import_scripts(xml_scripts: etree.Element | None, obj: classes.Object) -> None:
             if xml_scripts is None:
@@ -246,7 +256,7 @@ def read_xml(project: classes.Project, path: str = False) -> None:
                 script = classes.Script(name, obj)
                 script.code = code
 
-        def import_custom_attributes(xml_custom_attributes,obj:classes.Object):
+        def import_custom_attributes(xml_custom_attributes, obj: classes.Object):
             for xml_attrib in xml_custom_attributes:
                 name = xml_attrib.attrib.get(constants.NAME)
                 value = xml_attrib.text
@@ -259,10 +269,10 @@ def read_xml(project: classes.Project, path: str = False) -> None:
             xml_custom_attr_group = xml_object.find(constants.CUSTOM_ATTRIBUTES)
 
             property_sets, ident_attrib = import_property_sets(xml_property_group)
-            name, parent, identifer, is_concept,description = get_obj_data(xml_object)
-            obj = classes.Object(name, ident_attrib, identifier=identifer,description=description)
+            name, parent, identifer, is_concept, description,optional = get_obj_data(xml_object)
+            obj = classes.Object(name, ident_attrib, identifier=identifer, description=description,optional=optional)
             if xml_custom_attr_group is not None:
-                import_custom_attributes(xml_custom_attr_group,obj)
+                import_custom_attributes(xml_custom_attr_group, obj)
             ident_dict[identifer] = obj
 
             obj.ifc_mapping = {mapping.text for mapping in xml_mapping_group}
@@ -353,7 +363,7 @@ def read_xml(project: classes.Project, path: str = False) -> None:
     link_aggregation()
 
 
-def create_mapping_script(project:classes.Project,pset_name:str,path:str):
+def create_mapping_script(project: classes.Project, pset_name: str, path: str):
     attrib_dict = dict()
     obj: classes.Object
     for obj in project.objects:
@@ -373,7 +383,7 @@ def create_mapping_script(project:classes.Project,pset_name:str,path:str):
     env.lstrip_blocks = True
 
     template = env.get_template(MAPPING_TEMPLATE)
-    code = template.render(attribute_dict=attrib_dict,pset_name = pset_name)
+    code = template.render(attribute_dict=attrib_dict, pset_name=pset_name)
     with open(path, "w") as file:
         file.write(code)
     pass
