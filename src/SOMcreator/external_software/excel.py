@@ -311,6 +311,7 @@ def _create_items() -> None:
         bn = prop.get_attribute_by_name("bauteilName")
         if bn is not None:
             bn.value = [obj.name]
+
 def _build_object_tree() -> None:
     tree_dict: dict[str, classes.Object] = {obj.ident_attrib.value[0]: obj for obj in classes.Object}
 
@@ -418,9 +419,10 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
     if not os.path.exists(os.path.dirname(path)):
         raise FileNotFoundError(f"path {os.path.dirname(path)} DNE")
 
-    NA  = "name"
-    OBJ = "objects"
+    NAME = "name"
+    OBJECTS = "objects"
     TABLE_STYLE = "TableStyleLight1"
+    OPTIONAL_FONT = styles.Font(color="4e6ec0")
     def fill_main_sheet(sheet: Worksheet) -> None:
         sheet.title = "Uebersicht"
         sheet.cell(1, 1).value = "bauteilName"
@@ -429,7 +431,9 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         for row, obj in enumerate(sorted(project.objects), start=2):
             sheet.cell(row, 1).value = obj.name
             sheet.cell(row, 2).value = str(obj.ident_value)
-
+            if obj.optional:
+                sheet.cell(row,1).font = OPTIONAL_FONT
+                sheet.cell(row,2).font = OPTIONAL_FONT
         table_start = sheet.cell(1,1).coordinate
         table_end = sheet.cell(row,2).coordinate
         table_range = f"{table_start}:{table_end}"
@@ -441,16 +445,28 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         autoadjust_column_widths(sheet)
 
     def filter_to_sheets() -> dict:
-        d = {obj.ident_value: {NA:obj.name,OBJ:[]} for obj in project.objects if len(obj.ident_value.split(".")) == 1}
+        d = {obj.ident_value: {NAME:obj.name,OBJECTS:[]} for obj in project.objects if len(obj.ident_value.split(".")) == 1}
         for ident,name in mapping_dict.items():
-            d[ident] = {NA:name,OBJ:[]}
+            d[ident] = {NAME:name,OBJECTS:[]}
 
         for obj in project.objects:
             group = obj.ident_value.split(".")[0]
-            d[group][OBJ].append(obj)
+            d[group][OBJECTS].append(obj)
+
+        d["son"]= {NAME:"Sonstige",OBJECTS:[]}
+        for group_name,group in list(d.items()):
+            objects = group[OBJECTS]
+            if len(objects)<3:
+                d["son"][OBJECTS]+=objects
+                del d[group_name]
         return d
 
     def create_object_entry(obj:classes.Object, sheet, start_row, start_column,table_index):
+        if obj.optional:
+            font_style = OPTIONAL_FONT
+        else:
+            font_style = styles.Font()
+
         sheet.cell(start_row,start_column).value = "bauteilName"
         sheet.cell(start_row,start_column+1).value = obj.name
 
@@ -464,6 +480,9 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         sheet.cell(start_row+3,start_column+1).value = "Propertyset"
         sheet.cell(start_row+3,start_column+2).value = "Wertebereich"
 
+        for i in range(0,4):
+            for k in range(0,3):
+                sheet.cell(start_row+i,start_column+k).font = font_style
         draw_border(sheet, [start_row, start_row+2], [start_column, start_column+2])
         fill_grey(sheet, [start_row, start_row+2], [start_column, start_column+2])
 
@@ -479,6 +498,10 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
                 else:
                     attrib_val = ";".join(attribute.value)
                 sheet.cell(pset_start_row+index,start_column+2).value = attrib_val
+                if attribute.optional:
+                    sheet.cell(pset_start_row + index, start_column).font = OPTIONAL_FONT
+                    sheet.cell(pset_start_row + index, start_column+1).font = OPTIONAL_FONT
+                    sheet.cell(pset_start_row + index, start_column+2).font = OPTIONAL_FONT
                 index+=1
 
         table_start = sheet.cell(pset_start_row-1,start_column).coordinate
@@ -523,8 +546,8 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
     sheet_dict = filter_to_sheets()
     table_counter = 1
     for ident,d in sheet_dict.items():
-        obj_name = d[NA]
-        objects = d[OBJ]
+        obj_name = d[NAME]
+        objects = d[OBJECTS]
         work_sheet = workbook.create_sheet(f"{obj_name} ({ident})")
         for counter,obj in enumerate(sorted(objects)):
             column = 1+counter*4
