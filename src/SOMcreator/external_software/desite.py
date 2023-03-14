@@ -1,18 +1,22 @@
 from __future__ import annotations
-import datetime
-import xml.etree.ElementTree as ET
+
 import codecs
+import csv
+import datetime
+import json
 import os
 import uuid
+import xml.etree.ElementTree as ET
+
 import jinja2
-import csv
-
-from .. import classes,constants,Template
-from lxml import etree
 from anytree import AnyNode
+from lxml import etree
 
+from .. import classes, constants, Template
+from ..Template import HOME_DIR,BOOKMARK_TEMPLATE
 output_date_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 output_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
 
 def handle_header(project: classes.Project, export_format: str) -> etree._Element:
     ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
@@ -25,7 +29,7 @@ def handle_header(project: classes.Project, export_format: str) -> etree._Elemen
 
 ##TODO add xs:bool
 
-def export_modelcheck(project, path:str,project_tree = None) -> None:
+def export_modelcheck(project, path: str, project_tree=None) -> None:
     def add_js_rule(parent: etree._Element, file: codecs.StreamReaderWriter) -> str | None:
         name = os.path.basename(file.name)
         if not name.endswith(".js"):
@@ -136,23 +140,23 @@ def export_modelcheck(project, path:str,project_tree = None) -> None:
     def handle_object_rules(base_xml_container: etree._Element, template: jinja2.Template) -> dict[
         etree._Element, classes.Object]:
 
-        def handle_tree_structure(parent_xml_container, parent_node:AnyNode) -> None:
+        def handle_tree_structure(parent_xml_container, parent_node: AnyNode) -> None:
 
-            def create_container(xml_container, node:AnyNode):
+            def create_container(xml_container, node: AnyNode):
                 new_xml_container = handle_container(xml_container, node.obj.name)
-                create_object(new_xml_container,node)
+                create_object(new_xml_container, node)
                 for child_node in sorted(node.children, key=lambda x: x.id):
                     handle_tree_structure(new_xml_container, child_node)
 
-            def create_object(xml_container,node:AnyNode):
-                obj:classes.Object = node.obj
+            def create_object(xml_container, node: AnyNode):
+                obj: classes.Object = node.obj
                 xml_checkrun = handle_checkrun(xml_container, obj.name, project.author)
                 xml_rule = handle_rule(xml_checkrun, "Attributes")
                 xml_attribute_rule_list = handle_attribute_rule_list(xml_rule)
                 xml_rule_script = handle_rule_script(xml_attribute_rule_list, name=obj.name)
                 xml_code = handle_code(xml_rule_script)
 
-                property_sets = obj.property_sets
+                property_sets = [pset for pset in obj.property_sets if len(pset.attributes) > 0]
                 ident_name = obj.ident_attrib.name
                 ident_property_set = obj.ident_attrib.property_set.name
                 if ident_property_set == constants.IGNORE_PSET:
@@ -173,9 +177,9 @@ def export_modelcheck(project, path:str,project_tree = None) -> None:
                 xml_object_dict[xml_checkrun] = obj
 
             if parent_node.children:
-                create_container(parent_xml_container,parent_node)
+                create_container(parent_xml_container, parent_node)
             else:
-                create_object(parent_xml_container,parent_node)
+                create_object(parent_xml_container, parent_node)
 
         xml_object_dict: dict[etree._Element, classes.Object] = dict()
         root_nodes = project_tree.children
@@ -256,7 +260,7 @@ def export_modelcheck(project, path:str,project_tree = None) -> None:
     export(path)
 
 
-def export_bs(project:classes.Project,path:str) -> None:
+def export_bs(project: classes.Project, path: str) -> None:
     def handle_elementsection(xml_parent: etree._Element):
 
         def handle_section(aggregation: classes.Aggregation, xml_item: etree._Element) -> None:
@@ -286,7 +290,7 @@ def export_bs(project:classes.Project,path:str) -> None:
         xml_root.set("takt", "")
 
         root_objects: list[classes.Aggregation] = [aggreg for aggreg in classes.Aggregation if
-                                                  aggreg.is_root]
+                                                   aggreg.is_root]
 
         root_objects.sort(key=lambda x: x.name)
 
@@ -371,12 +375,14 @@ def export_bs(project:classes.Project,path:str) -> None:
         pass
 
 
-def export_bookmarks(path:str) -> None:
-    def handle_bookmark_list(xml_parent: etree._Element) -> None:
-        xml_bookmark_list = etree.SubElement(xml_parent, "cBookmarkList")
+def export_bookmarks(proj:classes.Project,path: str) -> None:
+    def handle_bookmark_list() -> etree.ElementTree:
+        xml_bookmarks = etree.Element("bookmarks")
+        xml_bookmarks.set("xmlnsxsi", "http://www.w3.org/2001/XMLSchema-instance")
+        xml_bookmark_list = etree.SubElement(xml_bookmarks, "cBookmarkList")
 
         obj: classes.Object
-        for obj in sorted(classes.Object, key=lambda x: x.ident_attrib.value[0]):
+        for obj in sorted(proj.objects, key=lambda x: x.ident_attrib.value[0]):
             xml_bookmark = etree.SubElement(xml_bookmark_list, "cBookmark")
             xml_bookmark.set("ID", str(obj.identifier))
 
@@ -398,23 +404,36 @@ def export_bookmarks(path:str) -> None:
                         xml_col = etree.SubElement(xml_bookmark, "col")
                         text = f"{property_set.name}:{attribute.name}##{attribute.data_type}"
                         xml_col.set("v", text)
+        return etree.ElementTree(xml_bookmarks)
 
-    def export() -> None:
+    def get_attribute_dict() -> dict[str,str]:
+        attribute_dict = {}
+        for obj in proj.objects:
+            for property_set in obj.property_sets:
+                for attribute in property_set.attributes:
+                    attribute_dict[f"{property_set.name}:{attribute.name}"] = attribute.data_type
 
-        xml_bookmarks = etree.Element("bookmarks")
-        xml_bookmarks.set("xmlnsxsi", "http://www.w3.org/2001/XMLSchema-instance")
-        handle_bookmark_list(xml_bookmarks)
-        tree = etree.ElementTree(xml_bookmarks)
-
-        with open(path, "wb") as f:
-            tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
-
-    if path:
-        export()
-        pass
+        return attribute_dict
+    if not os.path.isdir(path):
+        return
 
 
-def export_boq(path:str,pset_name):
+    with open(os.path.join(path, "bookmarks.bkxml"), "wb") as f:
+        tree = handle_bookmark_list()
+        tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
+
+    attrib_dict = get_attribute_dict()
+    file_loader = jinja2.FileSystemLoader(HOME_DIR)
+    env = jinja2.Environment(loader=file_loader)
+    env.trim_blocks = True
+    env.lstrip_blocks = True
+    template = env.get_template(BOOKMARK_TEMPLATE)
+    code = template.render(attribute_dict=attrib_dict)
+    with open(os.path.join(path, "bookmark_script.js"), "w") as f:
+        f.write(code)
+
+
+def export_boq(path: str, pset_name):
     def get_distinct_attributes(property_sets: list[classes.PropertySet]):
         attribute_names = list()
 
@@ -450,6 +469,5 @@ def export_boq(path:str,pset_name):
                     else:
                         line.append("")
                 writer.writerow(line)
-            print(writer)
 
     pass
