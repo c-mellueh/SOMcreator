@@ -471,3 +471,31 @@ def export_boq(path: str, pset_name):
                 writer.writerow(line)
 
     pass
+
+
+def export_attribute_json(project: classes.Project, path):
+    with open(path, "w") as file:
+        json_dict = dict()
+        for obj in sorted(project.objects, key=lambda x: x.ident_value):
+            if not obj.property_sets:
+                continue
+            if obj.ident_value is None:
+                continue
+            json_dict[obj.ident_value] = dict()
+            obj_dict = json_dict[obj.ident_value]
+            for property_set in obj.property_sets:
+                if not property_set.attributes:
+                    continue
+                obj_dict[property_set.name] = dict()
+                pset_dict = obj_dict[property_set.name]
+                for attribute in property_set.attributes:
+                    pset_dict[attribute.name] = dict()
+                    attribute_dict = pset_dict[attribute.name]
+
+                    attribute_dict[constants.DATA_TYPE] = attribute.data_type
+                    if not attribute.value:
+                        attribute_dict[constants.VALUE_TYPE] = "Exists"
+                    else:
+                        attribute_dict[constants.VALUE_TYPE] = attribute.value_type
+                    attribute_dict[constants.VALUE] = attribute.value
+        json.dump(json_dict, file, indent=1)

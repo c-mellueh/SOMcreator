@@ -12,50 +12,54 @@ if (isContainer == true && isComposite == false) {
     desiteResult.setCheckState('ignored');
     desiteResult.addMessage('Container was ignored.');
 }else{
+    var pset_dict = get_property_set_dict(id);
     var checkfailed = 0;
     var attrib_count =0;
     {%for pset in psets %}
 
     {%if pset.name ==constants.IGNORE_PSET%}
-    var pSet = '';
+    var propertySetName = '';
     {%-else-%}
-    var pSet = '{{pset.name}}:';
+    var propertySetName = '{{pset.name}}';
+if(check_property_set(pset_dict,propertySetName)) {
     {%-endif-%}
 
-        {%-for attribute in pset.attributes%}
+    {%-for attribute in pset.attributes%}
 
-        attrib_count+=1;
-        name= '{{attribute.name}}';
-        return_format= '{{attribute.data_type}}';
-        {%if attribute.value_type == constants.LIST%}
-        var list = [
-        {%-for value in attribute.value%}
-        {%-if not loop.index==1%} ,'{{value}}'
-        {%-else-%}
-        '{{value}}'
-        {%-endif-%}
-        {%-endfor%}]
-        {%if attribute.value ==[]%}
-        checkfailed +=check_exist(name,pSet,return_format);
-        {%else%}
-        checkfailed +=check_list(name,pSet,return_format,list);
-        {#TEST#}
-        {%-endif-%}
-        {%-elif attribute.value_type == constants.RANGE %}
-        range = {{attribute.value}};
-        checkfailed+=check_range(name,pSet,return_format,range);
-        {%elif attribute.value_type == constants.FORMAT %}
-        format = [
-        {%-for value in attribute.value -%}
-        {%-if not loop.index==1-%} ,'{{value.replace('\\','\\\\')}}'
-        {%-else-%}
-        '{{value.replace('\\','\\\\')}}'
-        {%-endif-%}
-        {%-endfor-%}]
-        checkfailed +=check_format(name,pSet,return_format,format);
-        {%-endif-%}
-        {%-endfor%}
-
+    attrib_count+=1;
+    attributeName= '{{attribute.name}}';
+    returnFormat= '{{attribute.data_type}}';
+    existingData = pset_dict[propertySetName][attributeName]
+    {%if attribute.value_type == constants.LIST%}
+    var list = [
+    {%-for value in attribute.value%}
+    {%-if not loop.index==1%} ,'{{value}}'
+    {%-else-%}
+    '{{value}}'
+    {%-endif-%}
+    {%-endfor%}]
+    {%if attribute.value ==[]%}
+    checkfailed +=check_exist(attributeName, propertySetName, returnFormat, existingData)
+    {%else%}
+    checkfailed +=check_for_value(attributeName, propertySetName, returnFormat, list, existingData);
+    {%endif-%}
+    {%-elif attribute.value_type == constants.RANGE %}
+    range = {{attribute.value}};
+    checkfailed+= check_range(attributeName, propertySetName, returnFormat, range, existingData);
+    {%elif attribute.value_type == constants.FORMAT %}
+    format = [
+    {%-for value in attribute.value -%}
+    {%-if not loop.index==1-%} ,'{{value.replace('\\','\\\\')}}'
+    {%-else-%}
+    '{{value.replace('\\','\\\\')}}'
+    {%-endif-%}
+    {%-endfor-%}]
+    checkfailed +=check_format(attributeName, propertySetName, returnFormat, format, existingData);
+    {%-endif-%}
+    {%-endfor%}
+}else{
+    checkfailed+= {{ pset.attributes.__len__() }};
+}
     {% endfor %}
     var check_status = "Undefined"
     if (checkfailed == 0) {
