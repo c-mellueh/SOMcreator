@@ -187,14 +187,9 @@ class ExcelBlock(metaclass=ExcelIterator):
 
             return data_type
 
-        if self.is_predefined_pset:
-            row = self.base_cell.row + 4
-        else:
-            row = self.base_cell.row + 5
+        entry = self.entry
 
-        entry = self.sheet.cell(row=row, column=self.base_cell.column)
-
-        cell_list = [block.base_cell for block in ExcelBlock]
+        cell_list = set(block.base_cell for block in ExcelBlock)
         attributes: set[classes.Attribute] = set()
 
         while entry.value is not None and entry not in cell_list and entry.value != "-":
@@ -211,7 +206,7 @@ class ExcelBlock(metaclass=ExcelIterator):
             attribute = classes.Attribute(self.pset, attribute_name, [], constants.VALUE_TYPE_LOOKUP[constants.LIST],
                                           data_type=data_type,optional=optional)
             if alternative_name and alternative_name is not None:
-                attribute.revit_name = alternative_name
+                attribute.revit_name = alternative_name #TODO: erevit name not alternative name
             attributes.add(attribute)
 
             entry = self.sheet.cell(row=entry.row + 1, column=entry.column)

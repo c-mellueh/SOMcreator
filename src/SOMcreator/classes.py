@@ -24,7 +24,7 @@ class IterRegistry(type):
 
 
 class Project(object):
-    def __init__(self, name: str, author: str = None) -> None:
+    def __init__(self, name: str, author: str|None = None) -> None:
         self._name = ""
         self._author = author
         self._version = "1.0.0"
