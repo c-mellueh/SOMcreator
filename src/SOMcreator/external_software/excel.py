@@ -104,8 +104,6 @@ class ExcelBlock(metaclass=ExcelIterator):
 
         child_cell = self.sheet.cell(row=self.base_cell.row + 3, column=self.base_cell.column + 1)
         child_string_list = split_string(child_cell.value)
-        excel_block_dict: dict[str, ExcelBlock] = {block.abbreviation: block for block in ExcelBlock}
-
         children = set()
         for abbrev in child_string_list:
             if abbrev != "-":
@@ -206,7 +204,7 @@ class ExcelBlock(metaclass=ExcelIterator):
             attribute = classes.Attribute(self.pset, attribute_name, [], constants.VALUE_TYPE_LOOKUP[constants.LIST],
                                           data_type=data_type,optional=optional)
             if alternative_name and alternative_name is not None:
-                attribute.revit_name = alternative_name #TODO: erevit name not alternative name
+                attribute.revit_name = entry.value
             attributes.add(attribute)
 
             entry = self.sheet.cell(row=entry.row + 1, column=entry.column)
@@ -226,8 +224,11 @@ class ExcelBlock(metaclass=ExcelIterator):
         pset_name = self.name
         if self.name.startswith("*"):
             pset_name = pset_name[1:]
-        self.pset = classes.PropertySet(pset_name)
-        self.pset.attributes = self.create_attributes()
+
+        attributes = self.create_attributes()
+        if attributes:
+            self.pset = classes.PropertySet(pset_name)
+            self.pset.attributes = attributes
         predef_psets: dict[str, ExcelBlock] = {block.name: block for block in ExcelBlock if block.is_predefined_pset}
         parent_pset = predef_psets.get(IDENT_PSET_NAME)
 
@@ -240,7 +241,8 @@ class ExcelBlock(metaclass=ExcelIterator):
             optional = True
             obj_name= obj_name[1:]
         obj = classes.Object(obj_name, ident_attrib,ifc_mapping=self.ifc_mapping(),optional=optional)
-        obj.add_property_set(self.pset)
+        if attributes:
+            obj.add_property_set(self.pset)
         obj.add_property_set(ident_pset)
         obj.custom_attribues[constants.ABBREVIATION] = self.abbreviation
 
@@ -294,7 +296,7 @@ def _create_items() -> None:
         object_block.object = obj
 
     for block in objects:
-        for pset in [block.pset for block in block.parent_classes]:
+        for pset in [block.pset for block in block.parent_classes if block.pset is not None]:
             new_pset = pset.create_child(pset.name)
             block.object.add_property_set(new_pset)
 
