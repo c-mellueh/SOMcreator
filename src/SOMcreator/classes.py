@@ -167,12 +167,15 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     @property
     def description(self):
-        return self._description
+        if self.parent is None:
+            return self._description
+        if self._description:
+            return self._description
+        return self.parent.description
 
     @description.setter
     def description(self, value):
         self._description = value
-
     @property
     def mapping_dict(self) -> dict[str, bool]:
         return self._mapping_dict
