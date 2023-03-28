@@ -166,7 +166,7 @@ class ExcelBlock(metaclass=ExcelIterator):
            Create Them and find special Datatypes
            """
 
-        def transform_value_types(attribute_name,value: str) -> (str, bool):
+        def transform_value_types(attribute_name:str,value: str) -> (str, bool):
             if value is not None:
                 if value.lower() in ["string", "str"]:
                     data_type = constants.XS_STRING
@@ -194,17 +194,15 @@ class ExcelBlock(metaclass=ExcelIterator):
             data_type_text = self.sheet.cell(row=entry.row, column=entry.column + 2).value
             data_type = transform_value_types(entry.value,data_type_text)
             attribute_name:str = entry.value
-            alternative_name = self.sheet.cell(row=entry.row, column=entry.column + 1).value
-
+            description = self.sheet.cell(row=entry.row, column=entry.column + 1).value
             optional = False
             if attribute_name.startswith("*"):
                 optional = True
                 attribute_name = attribute_name[1:]
 
             attribute = classes.Attribute(self.pset, attribute_name, [], constants.VALUE_TYPE_LOOKUP[constants.LIST],
-                                          data_type=data_type,optional=optional)
-            if alternative_name and alternative_name is not None:
-                attribute.revit_name = entry.value
+                                          data_type=data_type,optional=optional,description=description)
+            attribute.revit_name =attribute_name
             attributes.add(attribute)
 
             entry = self.sheet.cell(row=entry.row + 1, column=entry.column)
@@ -225,10 +223,12 @@ class ExcelBlock(metaclass=ExcelIterator):
         if self.name.startswith("*"):
             pset_name = pset_name[1:]
 
+        self.pset = classes.PropertySet(pset_name)
         attributes = self.create_attributes()
-        if attributes:
-            self.pset = classes.PropertySet(pset_name)
-            self.pset.attributes = attributes
+        if not attributes:
+            self.pset.delete()
+            self.pset = None
+
         predef_psets: dict[str, ExcelBlock] = {block.name: block for block in ExcelBlock if block.is_predefined_pset}
         parent_pset = predef_psets.get(IDENT_PSET_NAME)
 
@@ -401,7 +401,6 @@ def create_abbreviation_json(excel_path: str, ws_name: str, export_path: str = N
         _create_items()
         _build_object_tree()
         _build_aggregations()
-        print("{")
 
         d = {block.abbreviation: [block.ident_value, block.name] for block in ExcelBlock if
              block.ident_value is not None}
@@ -420,6 +419,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
     OBJECTS = "objects"
     TABLE_STYLE = "TableStyleLight1"
     OPTIONAL_FONT = styles.Font(color="4e6ec0")
+
     def fill_main_sheet(sheet: Worksheet) -> None:
         sheet.title = "Uebersicht"
         sheet.cell(1, 1).value = "bauteilName"
@@ -475,7 +475,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
 
         sheet.cell(start_row+3,start_column).value = "Property"
         sheet.cell(start_row+3,start_column+1).value = "Propertyset"
-        sheet.cell(start_row+3,start_column+2).value = "Wertebereich"
+        sheet.cell(start_row+3,start_column+2).value = "Beispiele / Beschreibung"
 
         for i in range(0,4):
             for k in range(0,3):
@@ -489,12 +489,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
             for attribute in sorted(property_set.attributes):
                 sheet.cell(pset_start_row+index,start_column).value = attribute.name
                 sheet.cell(pset_start_row+index,start_column+1).value = property_set.name
-
-                if not attribute.value:
-                    attrib_val = ""
-                else:
-                    attrib_val = ";".join(attribute.value)
-                sheet.cell(pset_start_row+index,start_column+2).value = attrib_val
+                sheet.cell(pset_start_row+index,start_column+2).value = attribute.description
                 if attribute.optional:
                     sheet.cell(pset_start_row + index, start_column).font = OPTIONAL_FONT
                     sheet.cell(pset_start_row + index, start_column+1).font = OPTIONAL_FONT
