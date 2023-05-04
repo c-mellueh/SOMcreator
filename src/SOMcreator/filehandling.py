@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Type
+import json
+import logging
+import os
 
 import jinja2
-from lxml import etree
 
 from . import constants, classes
 from .Template import MAPPING_TEMPLATE, HOME_DIR
@@ -16,351 +17,6 @@ def string_to_bool(text: str) -> bool | None:
         return False
     else:
         return None
-
-
-def build_xml(project: classes.Project) -> etree.ElementTree:
-    def add_parent(xml_item: etree.Element, item: classes.Object | classes.PropertySet | classes.Attribute) -> None:
-        if item.parent is not None:
-            xml_item.set(constants.PARENT, str(item.parent.identifier))
-        else:
-            xml_item.set(constants.PARENT, constants.NONE)
-
-    def add_predefined_property_sets() -> None:
-        xml_grouping = etree.SubElement(xml_project, constants.PREDEFINED_PSETS)
-        predefined_psets = [pset for pset in classes.PropertySet if pset.object == None]
-        for predefined_pset in predefined_psets:
-            add_property_set(predefined_pset, xml_grouping)
-
-    def add_objects() -> None:
-
-        def add_object(obj: classes.Object, xml_parent) -> None:
-            def add_ifc_mapping():
-                xml_ifc_mappings = etree.SubElement(xml_object, constants.IFC_MAPPINGS)
-                for mapping in obj.ifc_mapping:
-                    xml_ifc_mapping = etree.SubElement(xml_ifc_mappings, constants.IFC_MAPPING)
-                    xml_ifc_mapping.text = mapping
-                pass
-
-            def add_custom_attributes(key, value, xml_parent):
-                xml_attribute = etree.SubElement(xml_parent, constants.CUSTOM_ATTRIBUTE)
-                xml_attribute.set(constants.NAME, key)
-                if isinstance(value, str):
-                    value = f"'{value}'"
-                xml_attribute.text = str(value)
-                pass
-
-            xml_object = etree.SubElement(xml_parent, constants.OBJECT)
-            xml_object.set(constants.NAME, obj.name)
-            xml_object.set(constants.IDENTIFIER, str(obj.identifier))
-            xml_object.set("is_concept", str(obj.is_concept))
-            xml_object.set(constants.DESCRIPTION, obj.description)
-            xml_object.set(constants.OPTIONAL, str(obj.optional_wo_hirarchy))
-            add_parent(xml_object, obj)
-
-            add_ifc_mapping()
-            xml_property_sets = etree.SubElement(xml_object, constants.PROPERTY_SETS)
-            for property_set in obj.property_sets:
-                add_property_set(property_set, xml_property_sets)
-
-            xml_scripts = etree.SubElement(xml_object, constants.SCRIPTS)
-            for script in obj.scripts:
-                script: classes.Script = script
-                xml_script = etree.SubElement(xml_scripts, constants.SCRIPT)
-                xml_script.set(constants.NAME, script.name)
-                xml_script.text = script.code
-            xml_custom_attribute_grouping = etree.SubElement(xml_object, constants.CUSTOM_ATTRIBUTES)
-            for attribute_name, attribute_value in obj.custom_attribues.items():
-                add_custom_attributes(attribute_name, attribute_value, xml_custom_attribute_grouping)
-
-        xml_grouping = etree.SubElement(xml_project, constants.OBJECTS)
-        for obj in sorted(classes.Object, key=lambda x: x.name):
-            add_object(obj, xml_grouping)
-
-    def add_property_set(property_set: classes.PropertySet, xml_parent: etree.Element) -> None:
-        def add_attribute(attribute: classes.Attribute, xml_pset: etree._Element) -> None:
-            def add_value(attribute: classes.Attribute, xml_attribute: etree._Element) -> None:
-                values = attribute.value
-                for value in values:
-                    xml_value = etree.SubElement(xml_attribute, "Value")
-                    if attribute.value_type == constants.RANGE:
-                        xml_from = etree.SubElement(xml_value, "From")
-                        xml_to = etree.SubElement(xml_value, "To")
-                        xml_from.text = str(value[0])
-                        if len(value) > 1:
-                            xml_to.text = str(value[1])
-                    else:
-                        xml_value.text = str(value)
-
-            xml_attribute = etree.SubElement(xml_pset, constants.ATTRIBUTE)
-            xml_attribute.set(constants.NAME, attribute.name)
-            xml_attribute.set(constants.DATA_TYPE, attribute.data_type)
-            xml_attribute.set(constants.VALUE_TYPE, attribute.value_type)
-            xml_attribute.set(constants.IDENTIFIER, str(attribute.identifier))
-            xml_attribute.set(constants.CHILD_INHERITS_VALUE, str(attribute.child_inherits_values))
-            xml_attribute.set(constants.REVIT_MAPPING, str(attribute.revit_name))
-            xml_attribute.set(constants.DESCRIPTION, attribute.description)
-            xml_attribute.set(constants.OPTIONAL,str(attribute.optional_wo_hirarchy))
-            add_parent(xml_attribute, attribute)
-            obj = attribute.property_set.object
-            if obj is not None and attribute == obj.ident_attrib:
-                ident = True
-            else:
-                ident = False
-
-            xml_attribute.set(constants.IS_IDENTIFIER, str(ident))
-            add_value(attribute, xml_attribute)
-
-        xml_pset = etree.SubElement(xml_parent, constants.PROPERTY_SET)
-        xml_pset.set(constants.NAME, property_set.name)
-        xml_pset.set(constants.IDENTIFIER, str(property_set.identifier))
-        xml_pset.set(constants.DESCRIPTION, property_set.description)
-        xml_pset.set(constants.OPTIONAL,str(property_set.optional_wo_hirarchy))
-        add_parent(xml_pset, property_set)
-
-        xml_attributes = etree.SubElement(xml_pset, constants.ATTRIBUTES)
-        for attribute in property_set.attributes:
-            add_attribute(attribute, xml_attributes)
-
-    def add_aggregation(aggregation: classes.Aggregation, xml_nodes: etree.Element) -> None:
-        xml_aggregation = etree.SubElement(xml_nodes, constants.NODE)
-        xml_aggregation.set(constants.IDENTIFIER, str(aggregation.uuid))
-        xml_aggregation.set(constants.OBJECT.lower(), str(aggregation.object.identifier))
-        if aggregation.parent is not None:
-            xml_aggregation.set(constants.PARENT, str(aggregation.parent.uuid))
-        else:
-            xml_aggregation.set(constants.PARENT, constants.NONE)
-        xml_aggregation.set(constants.IS_ROOT, str(aggregation.is_root))
-        if aggregation.parent is not None:
-            xml_aggregation.set(constants.CONNECTION, str(aggregation.parent_connection))
-        else:
-            xml_aggregation.set(constants.CONNECTION, constants.NONE)
-
-    xml_project = etree.Element(constants.PROJECT)
-    xml_project.set(constants.NAME, str(project.name))
-    xml_project.set(constants.VERSION, str(project.version))
-    xml_project.set(constants.AUTHOR, str(project.author))
-
-    add_predefined_property_sets()
-    add_objects()
-
-    xml_nodes = etree.SubElement(xml_project, constants.NODES)
-
-    for aggregation in classes.Aggregation:
-        add_aggregation(aggregation, xml_nodes)
-
-    tree = etree.ElementTree(xml_project)
-    project.reset_changed()
-    return tree
-
-
-def read_xml(project: classes.Project, path: str = False) -> None:
-    if not path:
-        return
-    tree = etree.parse(path)
-    projekt_xml = tree.getroot()
-    project.author = projekt_xml.attrib.get(constants.AUTHOR)
-    project.name = projekt_xml.attrib.get("name")
-    project.version = projekt_xml.attrib.get("version")
-
-    def import_property_sets(xml_property_sets: list[etree._Element]) -> (list[classes.PropertySet], classes.Attribute):
-
-        def import_attributes(xml_attributes: etree._Element,
-                              property_set: classes.PropertySet) -> classes.Attribute | None:
-
-            def transform_new_values(xml_attribute: etree._Element) -> list[str]:
-                def empty_text(xml_value):
-                    if xml_value.text is None:
-                        return ""
-                    else:
-                        return xml_value.text
-
-                value_type = xml_attribute.attrib.get("value_type")
-                value = list()
-
-                if value_type != constants.RANGE:
-                    for xml_value in xml_attribute:
-                        value.append(empty_text(xml_value))
-
-                else:
-                    for xml_range in xml_attribute:
-                        from_to_list = list()
-                        for xml_value in xml_range:
-                            if xml_value.tag == "From":
-                                from_to_list.append(empty_text(xml_value))
-                            if xml_value.tag == "To":
-                                from_to_list.append(empty_text(xml_value))
-                        value.append(from_to_list)
-                return value
-
-            ident_attrib = None
-
-            for xml_attribute in xml_attributes:
-                attribs = xml_attribute.attrib
-                name = attribs.get(constants.NAME)
-                identifier = attribs.get(constants.IDENTIFIER)
-                data_type = attribs.get(constants.DATA_TYPE)
-                value_type = attribs.get(constants.VALUE_TYPE)
-                is_identifier = attribs.get(constants.IS_IDENTIFIER)
-                optional = string_to_bool(attribs.get(constants.OPTIONAL))
-                child_inh = string_to_bool(attribs.get(constants.CHILD_INHERITS_VALUE))
-                value = transform_new_values(xml_attribute)
-                description = attribs.get(constants.DESCRIPTION)
-                attrib = classes.Attribute(property_set, name, value, value_type, data_type, child_inh, identifier,
-                                           description, optional)
-                revit_mapping = attribs.get(constants.REVIT_MAPPING)
-                if revit_mapping == constants.NONE:
-                    revit_mapping = attrib.name
-                attrib.revit_name = revit_mapping
-                if is_identifier == str(True):
-                    ident_attrib = attrib
-            return ident_attrib
-
-        property_sets: list[classes.PropertySet] = list()
-        ident_attrib = None
-
-        for xml_property_set in xml_property_sets:
-            attribs = xml_property_set.attrib
-            name = attribs.get(constants.NAME)
-            identifier = attribs.get(constants.IDENTIFIER)
-            description = attribs.get(constants.DESCRIPTION)
-            optional = string_to_bool(attribs.get(constants.OPTIONAL))
-            property_set = classes.PropertySet(name, None, identifier, description,optional)
-
-            xml_attrib_group = xml_property_set.find(constants.ATTRIBUTES)
-            ident_value = import_attributes(xml_attrib_group, property_set)
-            if ident_value is not None:
-                ident_attrib = ident_value
-            property_sets.append(property_set)
-
-        return property_sets, ident_attrib
-
-    def import_objects(xml_objects: list[etree._Element]):
-
-        def get_obj_data(xml_object: etree._Element) -> (str, str, str, bool):
-            attribs = xml_object.attrib
-            obj_name: str = attribs.get(constants.NAME)
-            obj_parent: str = attribs.get(constants.PARENT)
-            identifier: str = attribs.get(constants.IDENTIFIER)
-            obj_is_concept: str = attribs.get(constants.IS_CONCEPT)
-            description = attribs.get(constants.DESCRIPTION)
-            optional = string_to_bool(attribs.get(constants.OPTIONAL))
-
-            return obj_name, obj_parent, identifier, string_to_bool(obj_is_concept), description,optional
-
-        def import_scripts(xml_scripts: etree.Element | None, obj: classes.Object) -> None:
-            if xml_scripts is None:
-                return
-            for xml_script in xml_scripts:
-                name = xml_script.attrib.get("name")
-                code = xml_script.text
-                script = classes.Script(name, obj)
-                script.code = code
-
-        def import_custom_attributes(xml_custom_attributes, obj: classes.Object):
-            for xml_attrib in xml_custom_attributes:
-                name = xml_attrib.attrib.get(constants.NAME)
-                value = xml_attrib.text
-                obj.custom_attribues[name] = eval(value)
-
-        for xml_object in xml_objects:
-            xml_property_group = xml_object.find(constants.PROPERTY_SETS)
-            xml_script_group = xml_object.find(constants.SCRIPTS)
-            xml_mapping_group = xml_object.find(constants.IFC_MAPPINGS)
-            xml_custom_attr_group = xml_object.find(constants.CUSTOM_ATTRIBUTES)
-
-            property_sets, ident_attrib = import_property_sets(xml_property_group)
-            name, parent, identifer, is_concept, description,optional = get_obj_data(xml_object)
-            obj = classes.Object(name, ident_attrib, identifier=identifer, description=description,optional=optional)
-            if xml_custom_attr_group is not None:
-                import_custom_attributes(xml_custom_attr_group, obj)
-            ident_dict[identifer] = obj
-
-            obj.ifc_mapping = {mapping.text for mapping in xml_mapping_group}
-            if not obj.ifc_mapping:
-                obj.ifc_mapping.add("IfcBuildingElementProxy")
-
-            for property_set in property_sets:
-                obj.add_property_set(property_set)
-
-            import_scripts(xml_script_group, obj)
-
-    def create_ident_dict(item_list: list[Type[classes.Hirarchy]]) -> dict[str, Type[classes.Hirarchy]]:
-        return {item.identifier: item for item in item_list}
-
-    def link_parents(xml_predefined_psets: list[etree._Element], xml_objects: list[etree._Element]) -> None:
-        def fill_dict(xml_dict: dict[str, str], xml_obj: etree._Element) -> None:
-            xml_dict[xml_obj.attrib.get(constants.IDENTIFIER)] = xml_obj.attrib.get(constants.PARENT)
-
-        def iterate() -> None:
-            for xml_predefined_pset in xml_predefined_psets:
-                fill_dict(xml_property_set_dict, xml_predefined_pset)
-                xml_attributes = xml_predefined_pset.find(constants.ATTRIBUTES)
-                for xml_attribute in xml_attributes:
-                    fill_dict(xml_attribute_dict, xml_attribute)
-
-            for xml_object in xml_objects:
-                fill_dict(xml_object_dict, xml_object)
-                xml_property_sets = xml_object.find(constants.PROPERTY_SETS)
-                for xml_property_set in xml_property_sets:
-                    fill_dict(xml_property_set_dict, xml_property_set)
-                    xml_attributes = xml_property_set.find(constants.ATTRIBUTES)
-                    for xml_attribute in xml_attributes:
-                        uuid = xml_attribute.attrib["identifer"]
-                        if xml_attribute_dict.get(uuid) is not None:
-                            print(f"ERROR DUPLICATED UUID {uuid}")
-                        fill_dict(xml_attribute_dict, xml_attribute)
-
-        def create_link(item_dict: dict[str, Type[classes.Hirarchy]], xml_dict: dict[str, str]):
-            for ident, item in item_dict.items():
-                parent_ident = xml_dict[str(ident)]
-                parent_item = item_dict.get(parent_ident)
-                if parent_item is not None:
-                    parent_item.add_child(child=item)
-
-        xml_property_set_dict = dict()
-        xml_object_dict = dict()
-        xml_attribute_dict = dict()
-        iterate()
-
-        obj_dict = create_ident_dict(classes.Object)
-        property_set_dict = create_ident_dict(classes.PropertySet)
-        attribute_dict = create_ident_dict(classes.Attribute)
-
-        create_link(obj_dict, xml_object_dict)
-        create_link(property_set_dict, xml_property_set_dict)
-        create_link(attribute_dict, xml_attribute_dict)
-
-    def link_aggregation() -> None:
-        def create_node_dict() -> dict[str, [classes.Aggregation, object]]:
-
-            id_node_dict = dict()
-            for xml_node in xml_group_nodes:
-                identifier = xml_node.attrib.get(constants.IDENTIFIER)
-                obj = ident_dict[xml_node.attrib.get(constants.OBJECT.lower())]
-                aggregation = classes.Aggregation(obj, identifier)
-                id_node_dict[identifier] = (aggregation, xml_node)
-            return id_node_dict
-
-        id_node_dict = create_node_dict()
-
-        for identifier, (aggregation, xml_node) in id_node_dict.items():
-            parent_id = xml_node.attrib.get(constants.PARENT)
-            is_root = xml_node.attrib.get(constants.IS_ROOT)
-            connection_type = xml_node.attrib.get(constants.CONNECTION)
-            if parent_id != constants.NONE:
-                parent_node: classes.Aggregation = id_node_dict[parent_id][0]
-                parent_node.add_child(aggregation, int(connection_type))
-
-    xml_group_predef_psets = projekt_xml.find(constants.PREDEFINED_PSETS)
-    xml_group_objects = projekt_xml.find(constants.OBJECTS)
-    xml_group_nodes = projekt_xml.find(constants.NODES)
-
-    import_property_sets(xml_group_predef_psets)
-    ident_dict: dict[str, classes.Object] = dict()
-    import_objects(xml_group_objects)
-
-    link_parents(xml_group_predef_psets, xml_group_objects)
-    link_aggregation()
 
 
 def create_mapping_script(project: classes.Project, pset_name: str, path: str):
@@ -387,3 +43,187 @@ def create_mapping_script(project: classes.Project, pset_name: str, path: str):
     with open(path, "w") as file:
         file.write(code)
     pass
+
+
+def export_json(project: classes.Project, path: str) -> dict:
+    def filL_basics(entity_dict, entity):
+        entity_dict[constants.NAME] = entity.name
+        entity_dict[constants.OPTIONAL] = entity.optional
+        if entity.parent is not None:
+            parent = entity.parent.uuid
+        else:
+            parent = None
+        entity_dict[constants.PARENT] = parent
+        entity_dict[constants.DESCRIPTION] = entity.description
+
+    def create_attribute_entry(attributes_dict, attribute):
+        attribute_dict = dict()
+        filL_basics(attribute_dict, attribute)
+        attribute_dict[constants.DATA_TYPE] = attribute.data_type
+        attribute_dict[constants.VALUE_TYPE] = attribute.value_type
+        attribute_dict[constants.CHILD_INHERITS_VALUE] = attribute.child_inherits_values
+        attribute_dict[constants.REVIT_MAPPING] = attribute.revit_name
+        attribute_dict[constants.VALUE] = attribute.value
+        attributes_dict[attribute.uuid] = attribute_dict
+
+    def create_pset_entry(psets_dict: dict, pset: classes.PropertySet):
+        pset_dict = dict()
+        filL_basics(pset_dict, pset)
+        attributes_dict = dict()
+        for attribute in pset.attributes:
+            create_attribute_entry(attributes_dict, attribute)
+        pset_dict[constants.ATTRIBUTES] = attributes_dict
+        psets_dict[pset.uuid] = pset_dict
+
+    def create_object_entry(objects_dict: dict, object: classes.Object):
+
+        object_dict = dict()
+        filL_basics(object_dict, object)
+
+        if isinstance(obj.ifc_mapping, set):
+            object_dict[constants.IFC_MAPPINGS] = list(object.ifc_mapping)
+        else:
+            object_dict[constants.IFC_MAPPINGS] = object.ifc_mapping
+
+        psets_dict = dict()
+        for pset in object.property_sets:
+            create_pset_entry(psets_dict, pset)
+
+        object_dict[constants.PROPERTY_SETS] = psets_dict
+        object_dict[constants.ABBREVIATION] = object.abbreviation
+
+        objects_dict[obj.uuid] = object_dict
+        if isinstance(object.ident_attrib, classes.Attribute):
+            object_dict[constants.IDENT_ATTRIBUTE] = object.ident_attrib.uuid
+        else:
+            object_dict[constants.IDENT_ATTRIBUTE] = object.ident_attrib
+
+    def create_aggregation_entry(aggregations_dict, aggregation: classes.Aggregation):
+        aggregation_dict = dict()
+        filL_basics(aggregation_dict, aggregation)
+        aggregation_dict[constants.OBJECT] = aggregation.object.uuid
+        if aggregation.parent is not None:
+            aggregation_dict[constants.PARENT] = aggregation.parent.uuid
+        else:
+            aggregation_dict[constants.PARENT] = aggregation.parent
+        aggregation_dict[constants.CONNECTION] = aggregation.parent_connection
+        aggregations_dict[aggregation.uuid] = aggregation_dict
+
+    main_dict = dict()
+    predef_pset_dict = dict()
+    predefined_psets = project.get_predefined_psets()
+    for entity in sorted(predefined_psets, key=lambda x: x.uuid):
+        create_pset_entry(predef_pset_dict, entity)
+    main_dict[constants.PREDEFINED_PSETS] = predef_pset_dict
+
+    objects_dict = dict()
+    for obj in classes.Object:
+        create_object_entry(objects_dict, obj)
+
+    main_dict[constants.OBJECTS] = objects_dict
+
+    aggregations_dict = dict()
+    for aggregation in project.aggregations:
+        create_aggregation_entry(aggregations_dict, aggregation)
+    main_dict[constants.AGGREGATIONS] = aggregations_dict
+    with open(path, "w") as file:
+        json.dump(main_dict, file, indent=2)
+
+    return main_dict
+
+
+def import_json(project: classes.Project, path: str):
+    if not os.path.isfile(path):
+        return
+    parent_dict = {}
+    aggregation_parent_dict: dict[classes.Aggregation, (str, int)] = dict()
+
+    with open(path, "r") as file:
+        main_dict: dict = json.load(file)
+
+    def load_basics(element_dict: dict) -> (str, str, str):
+        name = element_dict[constants.NAME]
+        description = element_dict[constants.DESCRIPTION]
+        optional = element_dict[constants.OPTIONAL]
+        parent = element_dict[constants.PARENT]
+        return name, description, optional, parent
+
+    def load_object(object_dict, identifier):
+        name, description, optional, parent = load_basics(object_dict)
+        ifc_mapping = object_dict[constants.IFC_MAPPINGS]
+        if isinstance(ifc_mapping, list):
+            ifc_mapping = set(ifc_mapping)
+
+        abbreviation = object_dict.get(constants.ABBREVIATION)
+
+        obj = classes.Object(name, None, identifier, ifc_mapping, description, optional, abbreviation)
+        property_sets_dict = object_dict[constants.PROPERTY_SETS]
+        for ident, pset_dict in property_sets_dict.items():
+            load_pset(pset_dict, ident, obj)
+        ident_attrib_id = object_dict[constants.IDENT_ATTRIBUTE]
+        ident_attrib = project.get_element_by_uuid(ident_attrib_id)
+        obj.ident_attrib = ident_attrib
+        parent_dict[obj] = parent
+
+    def load_pset(pset_dict: dict, identifier: str, obj: classes.Object | None) -> None:
+        name, description, optional, parent = load_basics(pset_dict)
+        pset = classes.PropertySet(name, obj, identifier, description, optional)
+        attributes_dict = pset_dict[constants.ATTRIBUTES]
+        for ident, attribute_dict in attributes_dict.items():
+            load_attribute(attribute_dict, ident, pset)
+        parent_dict[pset] = parent
+
+    def load_attribute(attribute_dict: dict, identifier: str, property_set: classes.PropertySet) -> None:
+        name, description, optional, parent = load_basics(attribute_dict)
+        value = attribute_dict[constants.VALUE]
+        value_type = attribute_dict[constants.VALUE_TYPE]
+        data_type = attribute_dict[constants.DATA_TYPE]
+        child_inherits_value = attribute_dict[constants.CHILD_INHERITS_VALUE]
+        revit_mapping = attribute_dict[constants.REVIT_MAPPING]
+        attribute = classes.Attribute(property_set, name, value, value_type, data_type,
+                                      child_inherits_value, identifier, description, optional, revit_mapping)
+        parent_dict[attribute] = parent
+
+    def load_dict(dict_name: str) -> dict | None:
+        return_dict = main_dict.get(dict_name)
+        if return_dict is None:
+            logging.error(f"loading Error: {dict_name} doesn't exist!")
+            return {}
+        return return_dict
+
+    def load_parents():
+        uuid_dict = project.get_uuid_dict()
+        for element, uuid in parent_dict.items():
+            if uuid is not None:
+                uuid_dict[uuid].add_child(element)
+
+    def load_aggregation(aggregation_dict: dict, identifier: str, ):
+        name, description, optional, parent = load_basics(aggregation_dict)
+        object_uuid = aggregation_dict[constants.OBJECT]
+        obj = project.get_element_by_uuid(object_uuid)
+        parent_connection = aggregation_dict[constants.CONNECTION]
+        aggregation = classes.Aggregation(obj, identifier, description, optional)
+        aggregation_parent_dict[aggregation] = (parent, parent_connection)
+
+    def build_aggregation_structure():
+        for aggregation, (uuid, connection_type) in aggregation_parent_dict.items():
+            parent = project.get_element_by_uuid(uuid)
+            if parent is not None:
+                parent.add_child(aggregation)
+
+    predefined_psets_dict = load_dict(constants.PREDEFINED_PSETS)
+
+    for ident, pset_dict in predefined_psets_dict.items():
+        load_pset(pset_dict, ident, None)
+
+    objects_dict = load_dict(constants.OBJECTS)
+    for ident, object_dict in objects_dict.items():
+        load_object(object_dict, ident)
+
+    aggregations_dict = load_dict(constants.AGGREGATIONS)
+    for ident, aggreg_dict in aggregations_dict.items():
+        load_aggregation(aggreg_dict, ident)
+
+    load_parents()
+    build_aggregation_structure()
+    return main_dict

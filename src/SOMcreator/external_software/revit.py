@@ -57,7 +57,7 @@ class SP_Item(metaclass=IterItem):
 
     def print(self, file: IO):
         file.write(
-            f"PARAM	{self.attribute.identifier}	{self.attribute.name}	{self.datatype()}		{self.pset_number}	1		1\n")
+            f"PARAM	{self.attribute.uuid}	{self.attribute.name}	{self.datatype()}		{self.pset_number}	1		1\n")
 
     def datatype(self) -> str:
         data_type = self.attribute.data_type
