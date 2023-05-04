@@ -384,7 +384,7 @@ def export_bookmarks(proj:classes.Project,path: str) -> None:
         obj: classes.Object
         for obj in sorted(proj.objects, key=lambda x: x.ident_attrib.value[0]):
             xml_bookmark = etree.SubElement(xml_bookmark_list, "cBookmark")
-            xml_bookmark.set("ID", str(obj.identifier))
+            xml_bookmark.set("ID", str(obj.uuid))
 
             if isinstance(obj.ident_attrib, classes.Attribute):
                 xml_bookmark.set("name", str(obj.ident_attrib.value[0]))

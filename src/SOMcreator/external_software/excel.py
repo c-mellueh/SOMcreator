@@ -244,7 +244,7 @@ class ExcelBlock(metaclass=ExcelIterator):
         if attributes:
             obj.add_property_set(self.pset)
         obj.add_property_set(ident_pset)
-        obj.custom_attribues[constants.ABBREVIATION] = self.abbreviation
+        obj.abbreviation = self.abbreviation
 
         return obj
 

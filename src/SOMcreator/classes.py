@@ -33,6 +33,28 @@ class Project(object):
         self.seperator_status = True
         self.seperator = ","
 
+    def get_uuid_dict(self) -> dict[str,Object|PropertySet|Attribute|Aggregation]:
+        pset_dict = {pset.uuid: pset for pset in PropertySet}
+        object_dict = {obj.uuid: obj for obj in Object}
+        attribute_dict = {attribute.uuid: attribute for attribute in Attribute}
+        aggregation_dict = {aggreg.uuid: aggreg for aggreg in Aggregation}
+        full_dict = pset_dict | object_dict | attribute_dict | aggregation_dict
+        if None in full_dict:
+            full_dict.pop(None)
+        return full_dict
+
+    def get_element_by_uuid(self,uuid:str) -> Attribute|PropertySet|Object|Aggregation|None:
+        if uuid is None:
+            return None
+        return self.get_uuid_dict().get(uuid)
+
+    def open(self,path) -> dict:
+        json_dict = filehandling.import_json(self,path)
+        return json_dict
+
+    def save(self,path) -> dict:
+        json_dict = filehandling.export_json(self,path)
+        return json_dict
     @property
     def changed(self) -> bool:
         def check_data():
@@ -85,11 +107,6 @@ class Project(object):
         self._version = value
         self._changed = True
 
-    def save(self, path: str):
-        tree = filehandling.build_xml(self)
-        with open(path, "wb") as f:
-            tree.write(f, pretty_print=True, encoding="utf-8", xml_declaration=True)
-
     def clear(self):
         for obj in Object:
             obj.delete()
@@ -106,15 +123,16 @@ class Project(object):
         self.seperator_status = True
         self.seperator = ","
 
-    def open(self, path: str) -> None:
-        filehandling.read_xml(self, path)
-
     def import_excel(self, path: str, ws_name: str) -> None:
         excel.open_file(path, ws_name)
 
     @property
     def objects(self) -> Iterator[Object]:
         return iter(Object)
+
+    @property
+    def aggregations(self) -> Iterator[Aggregation]:
+        return iter(Aggregation)
 
     def tree(self) -> AnyNode:
         def create_childen(node: AnyNode):
@@ -129,6 +147,8 @@ class Project(object):
             create_childen(n)
         return base
 
+    def get_predefined_psets(self) -> set[PropertySet]:
+        return set(pset for pset in PropertySet if pset.object == None)
 
 class Hirarchy(object, metaclass=IterRegistry):
 
@@ -239,15 +259,17 @@ class Hirarchy(object, metaclass=IterRegistry):
 class PropertySet(Hirarchy):
     _registry: set[PropertySet] = set()
 
-    def __init__(self, name: str, obj: Object = None, identifier: str = None, description: None | str = None,
+    def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
                  optional: None | bool = None) -> None:
         super(PropertySet, self).__init__(name, description, optional)
         self._attributes = set()
-        self._object = obj
+        self._object  = None
+        if obj is not None:
+            obj.add_property_set(self)  #adds Pset to Object and sets pset.object = obj
         self._registry.add(self)
-        self.identifier = identifier
-        if self.identifier is None:
-            self.identifier = str(uuid4())
+        self.uuid = uuid
+        if self.uuid is None:
+            self.uuid = str(uuid4())
         self.changed = True
 
     def __lt__(self, other):
@@ -374,8 +396,8 @@ class Attribute(Hirarchy):
 
     def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: int,
                  data_type: str = "xs:string",
-                 child_inherits_values: bool = False, identifier: str = None, description: None | str = None,
-                 optional: None | bool = None):
+                 child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
+                 optional: None | bool = None, revit_mapping: None|str = None):
 
         super(Attribute, self).__init__(name, description, optional)
         self._value = value
@@ -383,14 +405,17 @@ class Attribute(Hirarchy):
         self._value_type = value_type
         self._data_type = data_type
         self._registry.add(self)
-        self._revit_name = name
+        if revit_mapping is None:
+            self._revit_name = name
+        else:
+            self._revit_name  = revit_mapping
 
         self.changed = True
         self._child_inherits_values = child_inherits_values
-        self.identifier = identifier
+        self.uuid = uuid
 
-        if self.identifier is None:
-            self.identifier = str(uuid4())
+        if self.uuid is None:
+            self.uuid = str(uuid4())
         if property_set is not None:
             property_set.add_attribute(self)
 
@@ -542,9 +567,9 @@ class Attribute(Hirarchy):
 class Object(Hirarchy):
     _registry: set[Object] = set()
 
-    def __init__(self, name: str, ident_attrib: [Attribute, str], identifier: str = None,
+    def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
-                 optional: None | bool = None) -> None:
+                 optional: None | bool = None,abbreviation:None|str = None) -> None:
         super(Object, self).__init__(name, description, optional)
         self._registry.add(self)
 
@@ -554,23 +579,33 @@ class Object(Hirarchy):
         self._aggregations: set[Aggregation] = set()
         self.custom_attribues = {}
 
+        self._abbreviation = abbreviation
+        if abbreviation is None:
+            self._abbreviation = ""
+
+        self._ifc_mapping = ifc_mapping
         if ifc_mapping is None:
             self._ifc_mapping = {"IfcBuildingElementProxy"}
-        else:
-            self._ifc_mapping = ifc_mapping
+
+        self.uuid = uuid
+        if uuid is None:
+            self.uuid = str(uuid4())
 
         self.changed = True
-
-        if identifier is None:
-            self.identifier = str(uuid4())
-        else:
-            self.identifier = identifier
 
     def __str__(self):
         return f"Object {self.name}"
 
     def __lt__(self, other: Object):
         return self.ident_value < other.ident_value
+
+    @property
+    def abbreviation(self)-> str:
+        return self._abbreviation
+
+    @abbreviation.setter
+    def abbreviation(self,value)-> None:
+        self._abbreviation = value
 
     @property
     def ifc_mapping(self) -> set[str]:
@@ -695,10 +730,10 @@ class Object(Hirarchy):
         return None
 
     @property
-    def ident_value(self):
-        if not self.is_concept:
-            return self.ident_attrib.value[0]
-        return None
+    def ident_value(self) -> str:
+        if self.is_concept:
+            return str()
+        return ";".join(str(x) for x in self.ident_attrib.value)
 
 
 class Aggregation(Hirarchy):
