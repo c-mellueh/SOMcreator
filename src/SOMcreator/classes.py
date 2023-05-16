@@ -28,10 +28,8 @@ class Project(object):
         self._name = ""
         self._author = author
         self._version = "1.0.0"
-        self._changed = True
+        self._changed = True        # indecates if project was modified -> used for close dialog
         self.name = name
-        self.seperator_status = True
-        self.seperator = ","
 
     def get_uuid_dict(self) -> dict[str,Object|PropertySet|Attribute|Aggregation]:
         pset_dict = {pset.uuid: pset for pset in PropertySet}
@@ -120,8 +118,6 @@ class Project(object):
         self.version = "1.0.0"
         self.changed = True
         self.name = ""
-        self.seperator_status = True
-        self.seperator = ","
 
     def import_excel(self, path: str, ws_name: str) -> None:
         excel.open_file(path, ws_name)
