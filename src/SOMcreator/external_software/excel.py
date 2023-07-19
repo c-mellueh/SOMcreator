@@ -471,7 +471,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         sheet.cell(start_row+1,start_column+1).value = obj.ident_value
 
         sheet.cell(start_row + 2, start_column).value = "Kürzel"
-        sheet.cell(start_row+2,start_column+1).value = str(obj.custom_attribues.get(constants.ABBREVIATION))
+        sheet.cell(start_row+2,start_column+1).value = str(obj.abbreviation)
 
         sheet.cell(start_row+3,start_column).value = "Property"
         sheet.cell(start_row+3,start_column+1).value = "Propertyset"

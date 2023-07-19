@@ -24,7 +24,7 @@ class IterRegistry(type):
 
 
 class Project(object):
-    def __init__(self, name: str, author: str|None = None) -> None:
+    def __init__(self, name: str = "", author: str|None = None) -> None:
         self._name = ""
         self._author = author
         self._version = "1.0.0"
@@ -630,6 +630,7 @@ class Object(Hirarchy):
 
     def remove_node(self, node: Aggregation) -> None:
         self.aggregation_representations.remove(node)
+        node.delete()
 
     @property
     def inherited_property_sets(self) -> dict[Object, list[PropertySet]]:
