@@ -786,6 +786,12 @@ class Aggregation(Hirarchy):
     def is_root(self):
         return not self.parent
 
+    def id_group(self) -> str:
+        own_text = f"{self.object.abbreviation}_xxx"
+        if self.is_root:
+            return own_text
+        else:
+            return f"{self.parent.id_group()}_{own_text}"
 
 class Script():
     def __init__(self, title: str, obj: Object) -> None:
