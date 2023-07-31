@@ -209,7 +209,7 @@ def import_json(project: classes.Project, path: str):
         for aggregation, (uuid, connection_type) in aggregation_parent_dict.items():
             parent = project.get_element_by_uuid(uuid)
             if parent is not None:
-                parent.add_child(aggregation)
+                parent.add_child(aggregation,connection_type)
 
     predefined_psets_dict = load_dict(constants.PREDEFINED_PSETS)
 

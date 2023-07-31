@@ -628,9 +628,8 @@ class Object(Hirarchy):
     def add_aggregation_representation(self, node: Aggregation) -> None:
         self._aggregations.add(node)
 
-    def remove_node(self, node: Aggregation) -> None:
+    def remove_aggregation_representation(self, node: Aggregation) -> None:
         self.aggregation_representations.remove(node)
-        node.delete()
 
     @property
     def inherited_property_sets(self) -> dict[Object, list[PropertySet]]:
@@ -751,6 +750,10 @@ class Aggregation(Hirarchy):
         self.connection_dict: dict[Aggregation, int] = dict()
 
         self.object.add_aggregation_representation(self)
+
+    def delete(self) -> None:
+        super(Aggregation, self).delete()
+        self.object.remove_aggregation_representation(self)
 
     @property
     def parent_connection(self) -> int:
