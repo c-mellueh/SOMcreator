@@ -628,9 +628,8 @@ class Object(Hirarchy):
     def add_aggregation_representation(self, node: Aggregation) -> None:
         self._aggregations.add(node)
 
-    def remove_node(self, node: Aggregation) -> None:
+    def remove_aggregation_representation(self, node: Aggregation) -> None:
         self.aggregation_representations.remove(node)
-        node.delete()
 
     @property
     def inherited_property_sets(self) -> dict[Object, list[PropertySet]]:
@@ -752,6 +751,10 @@ class Aggregation(Hirarchy):
 
         self.object.add_aggregation_representation(self)
 
+    def delete(self) -> None:
+        super(Aggregation, self).delete()
+        self.object.remove_aggregation_representation(self)
+
     @property
     def parent_connection(self) -> int:
         """
@@ -786,6 +789,12 @@ class Aggregation(Hirarchy):
     def is_root(self):
         return not self.parent
 
+    def id_group(self) -> str:
+        own_text = f"{self.object.abbreviation}_xxx"
+        if self.is_root:
+            return own_text
+        else:
+            return f"{self.parent.id_group()}_{own_text}"
 
 class Script():
     def __init__(self, title: str, obj: Object) -> None:
