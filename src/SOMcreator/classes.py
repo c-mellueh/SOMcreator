@@ -747,7 +747,8 @@ class Aggregation(Hirarchy):
     def delete(self) -> None:
         super(Aggregation, self).delete()
         self.object.remove_aggregation(self)
-        self.parent.children.remove(self)
+        if not self.is_root:
+            self.parent.children.remove(self)
         for child in self.children:
             child.parent = None
 
