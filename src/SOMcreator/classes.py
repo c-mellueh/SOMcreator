@@ -810,32 +810,3 @@ class Aggregation(Hirarchy):
             return own_text
         else:
             return f"{self.parent.id_group()}_{own_text}"
-
-
-class Script():
-    def __init__(self, title: str, obj: Object) -> None:
-        self.code = str()
-        self.changed = True
-        self._object = obj
-        obj.add_script(self)
-        self._name = title
-
-    @property
-    def object(self) -> Object:
-        return self._object
-
-    @object.setter
-    def object(self, value: Object) -> None:
-        self._object.delete_script(self)
-        self._object = value
-        value.add_script(self)
-        self.changed = True
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, value: str) -> None:
-        self._name = value
-        self.changed = True
