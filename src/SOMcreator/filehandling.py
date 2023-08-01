@@ -202,7 +202,7 @@ def import_json(project: classes.Project, path: str):
         object_uuid = aggregation_dict[constants.OBJECT]
         obj = project.get_element_by_uuid(object_uuid)
         parent_connection = aggregation_dict[constants.CONNECTION]
-        aggregation = classes.Aggregation(obj, identifier, description, optional)
+        aggregation = classes.Aggregation(obj,parent_connection, identifier, description, optional)
         aggregation_parent_dict[aggregation] = (parent, parent_connection)
 
     def build_aggregation_structure():
