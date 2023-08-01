@@ -24,14 +24,14 @@ class IterRegistry(type):
 
 
 class Project(object):
-    def __init__(self, name: str = "", author: str|None = None) -> None:
+    def __init__(self, name: str = "", author: str | None = None) -> None:
         self._name = ""
         self._author = author
         self._version = "1.0.0"
-        self._changed = True        # indecates if project was modified -> used for close dialog
+        self._changed = True  # indecates if project was modified -> used for close dialog
         self.name = name
 
-    def get_uuid_dict(self) -> dict[str,Object|PropertySet|Attribute|Aggregation]:
+    def get_uuid_dict(self) -> dict[str, Object | PropertySet | Attribute | Aggregation]:
         pset_dict = {pset.uuid: pset for pset in PropertySet}
         object_dict = {obj.uuid: obj for obj in Object}
         attribute_dict = {attribute.uuid: attribute for attribute in Attribute}
@@ -41,18 +41,19 @@ class Project(object):
             full_dict.pop(None)
         return full_dict
 
-    def get_element_by_uuid(self,uuid:str) -> Attribute|PropertySet|Object|Aggregation|None:
+    def get_element_by_uuid(self, uuid: str) -> Attribute | PropertySet | Object | Aggregation | None:
         if uuid is None:
             return None
         return self.get_uuid_dict().get(uuid)
 
-    def open(self,path) -> dict:
-        json_dict = filehandling.import_json(self,path)
+    def open(self, path) -> dict:
+        json_dict = filehandling.import_json(self, path)
         return json_dict
 
-    def save(self,path) -> dict:
-        json_dict = filehandling.export_json(self,path)
+    def save(self, path) -> dict:
+        json_dict = filehandling.export_json(self, path)
         return json_dict
+
     @property
     def changed(self) -> bool:
         def check_data():
@@ -146,6 +147,7 @@ class Project(object):
     def get_predefined_psets(self) -> set[PropertySet]:
         return set(pset for pset in PropertySet if pset.object == None)
 
+
 class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None) -> None:
@@ -167,7 +169,7 @@ class Hirarchy(object, metaclass=IterRegistry):
             self._optional = optional
 
     @property
-    def optional_wo_hirarchy(self) ->bool:
+    def optional_wo_hirarchy(self) -> bool:
         return self._optional
 
     @property
@@ -192,6 +194,7 @@ class Hirarchy(object, metaclass=IterRegistry):
     @description.setter
     def description(self, value):
         self._description = value
+
     @property
     def mapping_dict(self) -> dict[str, bool]:
         return self._mapping_dict
@@ -259,9 +262,9 @@ class PropertySet(Hirarchy):
                  optional: None | bool = None) -> None:
         super(PropertySet, self).__init__(name, description, optional)
         self._attributes = set()
-        self._object  = None
+        self._object = None
         if obj is not None:
-            obj.add_property_set(self)  #adds Pset to Object and sets pset.object = obj
+            obj.add_property_set(self)  # adds Pset to Object and sets pset.object = obj
         self._registry.add(self)
         self.uuid = uuid
         if self.uuid is None:
@@ -393,7 +396,7 @@ class Attribute(Hirarchy):
     def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: int,
                  data_type: str = "xs:string",
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
-                 optional: None | bool = None, revit_mapping: None|str = None):
+                 optional: None | bool = None, revit_mapping: None | str = None):
 
         super(Attribute, self).__init__(name, description, optional)
         self._value = value
@@ -404,7 +407,7 @@ class Attribute(Hirarchy):
         if revit_mapping is None:
             self._revit_name = name
         else:
-            self._revit_name  = revit_mapping
+            self._revit_name = revit_mapping
 
         self.changed = True
         self._child_inherits_values = child_inherits_values
@@ -565,7 +568,7 @@ class Object(Hirarchy):
 
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
-                 optional: None | bool = None,abbreviation:None|str = None) -> None:
+                 optional: None | bool = None, abbreviation: None | str = None) -> None:
         super(Object, self).__init__(name, description, optional)
         self._registry.add(self)
 
@@ -596,11 +599,11 @@ class Object(Hirarchy):
         return self.ident_value < other.ident_value
 
     @property
-    def abbreviation(self)-> str:
+    def abbreviation(self) -> str:
         return self._abbreviation
 
     @abbreviation.setter
-    def abbreviation(self,value)-> None:
+    def abbreviation(self, value) -> None:
         self._abbreviation = value
 
     @property
@@ -738,8 +741,9 @@ class Aggregation(Hirarchy):
     def __str__(self):
         return self.name
 
-    def __init__(self, obj: Object, uuid: str | None = None, description: None | str = None,optional: None | bool = None):
-        super(Aggregation, self).__init__(obj.name, description,optional)
+    def __init__(self, obj: Object, uuid: str | None = None, description: None | str = None,
+                 optional: None | bool = None):
+        super(Aggregation, self).__init__(obj.name, description, optional)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
@@ -769,21 +773,50 @@ class Aggregation(Hirarchy):
 
         return self.parent.connection_dict[self]
 
-    def add_child(self, child: Aggregation, connection_type: int = constants.AGGREGATION) -> Aggregation:
+    def add_child(self, child: Aggregation, connection_type: int = constants.AGGREGATION) -> bool:
+        """returns if adding child is allowed"""
+
+        def loop_parents(element, search_value):
+            if element.parent is None:
+                return True
+            if element.parent.object == search_value:
+                return False
+            else:
+                return loop_parents(element.parent, search_value)
+
+        if child.object == self.object:
+            print("IDENT OBJECT")
+            return False
+
+        if not loop_parents(self, child.object):
+            print("same Parent 1")
+            return False
+
+        if not child.set_parent(self, connection_type):
+            print("Parent allready exists")
+            return False
+
         self.children.add(child)
-        child.set_parent(self, connection_type)
         self.connection_dict[child] = connection_type
-        return child
+        return True
 
     @property
     def parent(self) -> Aggregation:
         return self._parent
 
-    def set_parent(self, value: Aggregation, connection_type: int) -> None:
-        if self.parent is not None:
-            self.connection_dict.pop(self.parent)
+    def set_parent(self, value: Aggregation, connection_type: int) -> bool:
+        if self.parent is not None and value != self._parent:
+            return False
+            # self.connection_dict.pop(self.parent)
+
         self._parent = value
         self.connection_dict[value] = connection_type
+        return True
+
+    def remove_parent(self):
+        if self in self.parent.children:
+            self.parent.children.remove(self)
+        self._parent = None
 
     @property
     def is_root(self):
@@ -795,6 +828,7 @@ class Aggregation(Hirarchy):
             return own_text
         else:
             return f"{self.parent.id_group()}_{own_text}"
+
 
 class Script():
     def __init__(self, title: str, obj: Object) -> None:
