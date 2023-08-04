@@ -169,11 +169,6 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
                 xml_code.text = cdata_code
                 handle_rule(xml_checkrun, "UniquePattern")
 
-                for script in obj.scripts:
-                    xml_rule_script = handle_rule_script(xml_attribute_rule_list, name=script.name)
-                    xml_code = handle_code(xml_rule_script)
-                    xml_code.text = script.code
-
                 xml_object_dict[xml_checkrun] = obj
 
             if parent_node.children:

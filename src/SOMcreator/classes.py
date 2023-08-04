@@ -220,7 +220,11 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     @parent.setter
     def parent(self, parent: Hirarchy) -> None:
+        if self.parent is not None:
+            self.parent._children.remove(self)
         self._parent = parent
+        if parent is not None:
+            self._parent._children.add(self)
         self.changed = True
 
     @property
@@ -806,8 +810,19 @@ class Aggregation(Hirarchy):
         return False
 
     def id_group(self) -> str:
-        own_text = f"{self.object.abbreviation}_xxx"
+        abbrev_list = list()
+
+        def iter_id(element: Aggregation):
+            if element.parent_connection in (constants.AGGREGATION, constants.AGGREGATION + constants.INHERITANCE):
+                abbrev_list.append(element.parent.object.abbreviation)
+            if not element.is_root:
+                iter_id(element.parent)
+
         if self.is_root:
-            return own_text
-        else:
-            return f"{self.parent.id_group()}_{own_text}"
+            return ""
+
+        iter_id(self)
+        return "_xxx_".join(reversed(abbrev_list)) + "_xxx"
+
+    def identity(self) -> str:
+        self.id_group() + "_" + self.object.abbreviation + "_xxx"
