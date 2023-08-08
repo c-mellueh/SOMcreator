@@ -46,6 +46,11 @@ def create_mapping_script(project: classes.Project, pset_name: str, path: str):
 
 
 def export_json(project: classes.Project, path: str) -> dict:
+    def create_project(project_dict:dict) -> None:
+        project_dict[constants.NAME] = project.name
+        project_dict[constants.AUTHOR] = project.author
+        project_dict[constants.VERSION] = project.version
+
     def filL_basics(entity_dict, entity):
         entity_dict[constants.NAME] = entity.name
         entity_dict[constants.OPTIONAL] = entity.optional
@@ -110,6 +115,9 @@ def export_json(project: classes.Project, path: str) -> dict:
         aggregations_dict[aggregation.uuid] = aggregation_dict
 
     main_dict = dict()
+    main_dict[constants.PROJECT] = dict()
+    create_project(main_dict[constants.PROJECT])
+
     predef_pset_dict = dict()
     predefined_psets = project.get_predefined_psets()
     for entity in sorted(predefined_psets, key=lambda x: x.uuid):
@@ -140,6 +148,10 @@ def import_json(project: classes.Project, path: str):
 
     with open(path, "r") as file:
         main_dict: dict = json.load(file)
+    def load_project_data(project_dict:dict):
+        project.name = project_dict.get(constants.NAME)
+        project.author = project_dict.get(constants.AUTHOR)
+        project.version = project_dict.get(constants.VERSION)
 
     def load_basics(element_dict: dict) -> (str, str, str):
         name = element_dict[constants.NAME]
@@ -210,6 +222,12 @@ def import_json(project: classes.Project, path: str):
             parent = project.get_element_by_uuid(uuid)
             if parent is not None:
                 parent.add_child(aggregation,connection_type)
+
+    project_dict = main_dict.get(constants.PROJECT)
+    if project_dict is None:
+        logging.warning(f"{constants.PROJECT}-dict doesn't exist unable to load Author, Name and Version")
+    else:
+        load_project_data(project_dict)
 
     predefined_psets_dict = load_dict(constants.PREDEFINED_PSETS)
 
