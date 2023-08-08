@@ -215,11 +215,11 @@ class Hirarchy(object, metaclass=IterRegistry):
         self.changed = True
 
     @property
-    def parent(self) -> Hirarchy:
+    def parent(self) -> PropertySet | Object | Attribute | Aggregation:
         return self._parent
 
     @parent.setter
-    def parent(self, parent: Hirarchy) -> None:
+    def parent(self, parent: PropertySet | Object | Attribute | Aggregation) -> None:
         if self.parent is not None:
             self.parent._children.remove(self)
         self._parent = parent
@@ -242,15 +242,15 @@ class Hirarchy(object, metaclass=IterRegistry):
             return False
 
     @property
-    def children(self) -> set[Hirarchy]:
+    def children(self) -> set[PropertySet | Object | Attribute | Aggregation]:
         return self._children
 
-    def add_child(self, child: Hirarchy) -> None:
+    def add_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
         self.children.add(child)
         child.parent = self
         self.changed = True
 
-    def remove_child(self, child: Hirarchy) -> None:
+    def remove_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
         self.children.remove(child)
         child.delete()
 
@@ -758,6 +758,8 @@ class Aggregation(Hirarchy):
 
     @property
     def parent_connection(self):
+        if self.parent is None:
+            return None
         return self._parent_connection
 
     @parent_connection.setter
