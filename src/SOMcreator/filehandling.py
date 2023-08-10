@@ -46,10 +46,12 @@ def create_mapping_script(project: classes.Project, pset_name: str, path: str):
 
 
 def export_json(project: classes.Project, path: str) -> dict:
-    def create_project(project_dict:dict) -> None:
+    def create_project_data(project_dict:dict) -> None:
         project_dict[constants.NAME] = project.name
         project_dict[constants.AUTHOR] = project.author
         project_dict[constants.VERSION] = project.version
+        project_dict[constants.AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
+        project_dict[constants.AGGREGATION_PSET] = project.aggregation_pset
 
     def filL_basics(entity_dict, entity):
         entity_dict[constants.NAME] = entity.name
@@ -116,7 +118,7 @@ def export_json(project: classes.Project, path: str) -> dict:
 
     main_dict = dict()
     main_dict[constants.PROJECT] = dict()
-    create_project(main_dict[constants.PROJECT])
+    create_project_data(main_dict[constants.PROJECT])
 
     predef_pset_dict = dict()
     predefined_psets = project.get_predefined_psets()
@@ -152,6 +154,13 @@ def import_json(project: classes.Project, path: str):
         project.name = project_dict.get(constants.NAME)
         project.author = project_dict.get(constants.AUTHOR)
         project.version = project_dict.get(constants.VERSION)
+        pset = project_dict.get(constants.AGGREGATION_PSET)
+        attribute = project_dict.get(constants.AGGREGATION_ATTRIBUTE)
+
+        if pset is not None:
+            project.aggregation_pset = pset
+        if attribute is not None:
+            project.aggregation_attribute = attribute
 
     def load_basics(element_dict: dict) -> (str, str, str):
         name = element_dict[constants.NAME]

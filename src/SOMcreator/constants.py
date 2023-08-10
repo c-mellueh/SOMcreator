@@ -37,6 +37,8 @@ IGNORE_PSET = "IFC"
 INHERITED_TEXT = "Predefined Pset"
 
 # xml export
+AGGREGATION_PSET = "AggregationPsetName"
+AGGREGATION_ATTRIBUTE = "AggregationAttributeName"
 PREDEFINED_PSETS = "PredefinedPropertySets"
 PREDEFINED_PSET = "PredefinedPropertySet"
 PROPERTY_SET = "PropertySet"
