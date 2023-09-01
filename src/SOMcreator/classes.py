@@ -152,8 +152,10 @@ class Project(object):
 
 class Hirarchy(object, metaclass=IterRegistry):
 
-    def __init__(self, name: str, description: str | None = None, optional: bool | None = None) -> None:
+    def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
+                 project_phases: list[bool] | None = None) -> None:
 
+        self.project_phases = project_phases
         self._parent = None
         self._children = set()
         self._name = name
@@ -169,6 +171,9 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._optional = False
         if optional is not None:
             self._optional = optional
+
+        if self.project_phases is None:
+            self.project_phases: list[bool] = [True for _ in range(9)]
 
     @property
     def optional_wo_hirarchy(self) -> bool:
