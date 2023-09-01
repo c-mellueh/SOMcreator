@@ -13,25 +13,13 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      - name: Check pypi versions
-        uses: maybe-hello-world/pyproject-check-version@v3
-        id: versioncheck
-        with:
-          pyproject-path: "./pyproject.toml"    # default value
-      - name: check output
-        run: |
-            echo "Output: ${{steps.versioncheck.outputs.local_version_is_higher}}"  # 'true' or 'false
-            echo "Local version: ${{ steps.versioncheck.outputs.local_version }}"     # e.g., 0.1.1
-            echo "Public version: ${{ steps.versioncheck.outputs.public_version }}"   # e.g., 0.1.0
       - name: Install pypa/build
-        if: steps.versioncheck.outputs.local_version_is_higher
         run: >-
           python3 -m
           pip install
           build
           --user
       - name: Build a binary wheel and a source tarball
-        if: steps.versioncheck.outputs.local_version_is_higher
         run: >-
           python3 -m
           build
@@ -39,10 +27,8 @@ jobs:
           --wheel
           --outdir dist/
       - name: Publish package distribution to TestPyPI
-        if: steps.versioncheck.outputs.local_version_is_higher
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
       - name: Publish package distributions to PyPI
-        if: steps.versioncheck.outputs.local_version_is_higher
         uses: pypa/gh-action-pypi-publish@release/v1      
