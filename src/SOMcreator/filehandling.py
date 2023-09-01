@@ -54,8 +54,10 @@ def export_json(project: classes.Project, path: str) -> dict:
         project_dict[constants.AGGREGATION_PSET] = project.aggregation_pset
 
     def filL_basics(entity_dict, entity):
+        """function gets called from all Entities"""
         entity_dict[constants.NAME] = entity.name
         entity_dict[constants.OPTIONAL] = entity.optional
+        entity_dict[constants.PROJECT_PHASES] = entity.project_phases
         if entity.parent is not None:
             parent = entity.parent.uuid
         else:
