@@ -213,7 +213,7 @@ def import_json(project: classes.Project, path: str):
         return return_dict
 
     def load_parents():
-        uuid_dict = project.get_uuid_dict()
+        uuid_dict = classes.get_uuid_dict()
         for element, uuid in parent_dict.items():
             if uuid is not None:
                 uuid_dict[uuid].add_child(element)

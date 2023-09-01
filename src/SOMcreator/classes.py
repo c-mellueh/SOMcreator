@@ -10,7 +10,24 @@ from . import constants, filehandling
 from .external_software import excel
 
 
+def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
+    pset_dict = {pset.uuid: pset for pset in PropertySet}
+    object_dict = {obj.uuid: obj for obj in Object}
+    attribute_dict = {attribute.uuid: attribute for attribute in Attribute}
+    aggregation_dict = {aggreg.uuid: aggreg for aggreg in Aggregation}
+    full_dict = pset_dict | object_dict | attribute_dict | aggregation_dict
+    if None in full_dict:
+        full_dict.pop(None)
+    return full_dict
+
+
+def get_element_by_uuid(uuid: str) -> Attribute | PropertySet | Object | Aggregation | None:
+    if uuid is None:
+        return None
+    return get_uuid_dict().get(uuid)
+
 # Add child to Parent leads to reverse
+
 
 class IterRegistry(type):
     _registry = set()
@@ -32,21 +49,6 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
-
-    def get_uuid_dict(self) -> dict[str, Object | PropertySet | Attribute | Aggregation]:
-        pset_dict = {pset.uuid: pset for pset in PropertySet}
-        object_dict = {obj.uuid: obj for obj in Object}
-        attribute_dict = {attribute.uuid: attribute for attribute in Attribute}
-        aggregation_dict = {aggreg.uuid: aggreg for aggreg in Aggregation}
-        full_dict = pset_dict | object_dict | attribute_dict | aggregation_dict
-        if None in full_dict:
-            full_dict.pop(None)
-        return full_dict
-
-    def get_element_by_uuid(self, uuid: str) -> Attribute | PropertySet | Object | Aggregation | None:
-        if uuid is None:
-            return None
-        return self.get_uuid_dict().get(uuid)
 
     def open(self, path) -> dict:
         json_dict = filehandling.import_json(self, path)
@@ -834,4 +836,5 @@ class Aggregation(Hirarchy):
         return "_xxx_".join(reversed(abbrev_list)) + "_xxx"
 
     def identity(self) -> str:
-        self.id_group() + "_" + self.object.abbreviation + "_xxx"
+        return self.id_group() + "_" + self.object.abbreviation + "_xxx"
+
