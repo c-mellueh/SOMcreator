@@ -20,7 +20,7 @@ jobs:
           pyproject-path: "./pyproject.toml"    # default value
       - name: check output
         run: |
-            echo "Output: ${{teps.versioncheck.outputs.local_version_is_higher}}"  # 'true' or 'false
+            echo "Output: ${{steps.versioncheck.outputs.local_version_is_higher}}"  # 'true' or 'false
             echo "Local version: ${{ steps.versioncheck.outputs.local_version }}"     # e.g., 0.1.1
             echo "Public version: ${{ steps.versioncheck.outputs.public_version }}"   # e.g., 0.1.0
       - name: Install pypa/build
