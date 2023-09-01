@@ -476,12 +476,13 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         sheet.cell(start_row+3,start_column).value = "Property"
         sheet.cell(start_row+3,start_column+1).value = "Propertyset"
         sheet.cell(start_row+3,start_column+2).value = "Beispiele / Beschreibung"
+        sheet.cell(start_row + 3, start_column + 3).value = "Datentyp"
 
         for i in range(0,4):
-            for k in range(0,3):
+            for k in range(0,4):
                 sheet.cell(start_row+i,start_column+k).font = font_style
-        draw_border(sheet, [start_row, start_row+2], [start_column, start_column+2])
-        fill_grey(sheet, [start_row, start_row+2], [start_column, start_column+2])
+        draw_border(sheet, [start_row, start_row+2], [start_column, start_column+4])
+        fill_grey(sheet, [start_row, start_row+2], [start_column, start_column+3])
 
         pset_start_row = start_row+4
         index = 0
@@ -490,6 +491,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
                 sheet.cell(pset_start_row+index,start_column).value = attribute.name
                 sheet.cell(pset_start_row+index,start_column+1).value = property_set.name
                 sheet.cell(pset_start_row+index,start_column+2).value = attribute.description
+                sheet.cell(pset_start_row+index,start_column+3).value = attribute.data_type
                 if attribute.optional:
                     sheet.cell(pset_start_row + index, start_column).font = OPTIONAL_FONT
                     sheet.cell(pset_start_row + index, start_column+1).font = OPTIONAL_FONT
@@ -497,7 +499,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
                 index+=1
 
         table_start = sheet.cell(pset_start_row-1,start_column).coordinate
-        table_end = sheet.cell(pset_start_row+index-1,start_column+2).coordinate
+        table_end = sheet.cell(pset_start_row+index-1,start_column+3).coordinate
         table_range = f"{table_start}:{table_end}"
         table = Table(displayName=f"Tabelle_{str(table_index).zfill(5)}",ref=table_range )
         style = TableStyleInfo(name=TABLE_STYLE, showFirstColumn=False,
@@ -542,7 +544,7 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         objects = d[OBJECTS]
         work_sheet = workbook.create_sheet(f"{obj_name} ({ident})")
         for counter,obj in enumerate(sorted(objects)):
-            column = 1+counter*4
+            column = 1+counter*5
             create_object_entry(obj,work_sheet,1,column,table_counter)
             table_counter+=1
         autoadjust_column_widths(work_sheet)

@@ -30,6 +30,8 @@ class Project(object):
         self._version = "1.0.0"
         self._changed = True  # indecates if project was modified -> used for close dialog
         self.name = name
+        self.aggregation_attribute = ""
+        self.aggregation_pset = ""
 
     def get_uuid_dict(self) -> dict[str, Object | PropertySet | Attribute | Aggregation]:
         pset_dict = {pset.uuid: pset for pset in PropertySet}
