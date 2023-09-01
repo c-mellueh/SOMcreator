@@ -36,7 +36,9 @@ FILEPATH_JS = "js_templates"
 IGNORE_PSET = "IFC"
 INHERITED_TEXT = "Predefined Pset"
 
-# xml export
+# json export
+CURRENT_PRJECT_PHASE = "current_project_phase"
+PROJECT_PHASES = "ProjectPhases"
 AGGREGATION_PSET = "AggregationPsetName"
 AGGREGATION_ATTRIBUTE = "AggregationAttributeName"
 PREDEFINED_PSETS = "PredefinedPropertySets"

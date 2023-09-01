@@ -10,7 +10,24 @@ from . import constants, filehandling
 from .external_software import excel
 
 
+def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
+    pset_dict = {pset.uuid: pset for pset in PropertySet}
+    object_dict = {obj.uuid: obj for obj in Object}
+    attribute_dict = {attribute.uuid: attribute for attribute in Attribute}
+    aggregation_dict = {aggreg.uuid: aggreg for aggreg in Aggregation}
+    full_dict = pset_dict | object_dict | attribute_dict | aggregation_dict
+    if None in full_dict:
+        full_dict.pop(None)
+    return full_dict
+
+
+def get_element_by_uuid(uuid: str) -> Attribute | PropertySet | Object | Aggregation | None:
+    if uuid is None:
+        return None
+    return get_uuid_dict().get(uuid)
+
 # Add child to Parent leads to reverse
+
 
 class IterRegistry(type):
     _registry = set()
@@ -32,21 +49,7 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
-
-    def get_uuid_dict(self) -> dict[str, Object | PropertySet | Attribute | Aggregation]:
-        pset_dict = {pset.uuid: pset for pset in PropertySet}
-        object_dict = {obj.uuid: obj for obj in Object}
-        attribute_dict = {attribute.uuid: attribute for attribute in Attribute}
-        aggregation_dict = {aggreg.uuid: aggreg for aggreg in Aggregation}
-        full_dict = pset_dict | object_dict | attribute_dict | aggregation_dict
-        if None in full_dict:
-            full_dict.pop(None)
-        return full_dict
-
-    def get_element_by_uuid(self, uuid: str) -> Attribute | PropertySet | Object | Aggregation | None:
-        if uuid is None:
-            return None
-        return self.get_uuid_dict().get(uuid)
+        self.current_project_phase = 0
 
     def open(self, path) -> dict:
         json_dict = filehandling.import_json(self, path)
@@ -152,8 +155,10 @@ class Project(object):
 
 class Hirarchy(object, metaclass=IterRegistry):
 
-    def __init__(self, name: str, description: str | None = None, optional: bool | None = None) -> None:
+    def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
+                 project_phases: list[bool] | None = None) -> None:
 
+        self.project_phases = project_phases
         self._parent = None
         self._children = set()
         self._name = name
@@ -169,6 +174,9 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._optional = False
         if optional is not None:
             self._optional = optional
+
+        if self.project_phases is None:
+            self.project_phases: list[bool] = [True for _ in range(9)]
 
     @property
     def optional_wo_hirarchy(self) -> bool:
@@ -265,8 +273,8 @@ class PropertySet(Hirarchy):
     _registry: set[PropertySet] = set()
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
-                 optional: None | bool = None) -> None:
-        super(PropertySet, self).__init__(name, description, optional)
+                 optional: None | bool = None, project_phases: None| list[bool] = None) -> None:
+        super(PropertySet, self).__init__(name, description, optional,project_phases)
         self._attributes = set()
         self._object = None
         if obj is not None:
@@ -402,9 +410,9 @@ class Attribute(Hirarchy):
     def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: int,
                  data_type: str = "xs:string",
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
-                 optional: None | bool = None, revit_mapping: None | str = None):
+                 optional: None | bool = None, revit_mapping: None | str = None, project_phases: None| list[bool] = None):
 
-        super(Attribute, self).__init__(name, description, optional)
+        super(Attribute, self).__init__(name, description, optional, project_phases)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -574,8 +582,8 @@ class Object(Hirarchy):
 
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
-                 optional: None | bool = None, abbreviation: None | str = None) -> None:
-        super(Object, self).__init__(name, description, optional)
+                 optional: None | bool = None, abbreviation: None | str = None, project_phases: None| list[bool] = None) -> None:
+        super(Object, self).__init__(name, description, optional,project_phases)
         self._registry.add(self)
 
         self._property_sets: list[PropertySet] = list()
@@ -738,8 +746,8 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None, ):
-        super(Aggregation, self).__init__(obj.name, description, optional)
+                 optional: None | bool = None,project_phases: None| list[bool] = None ):
+        super(Aggregation, self).__init__(obj.name, description, optional,project_phases)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
@@ -829,4 +837,5 @@ class Aggregation(Hirarchy):
         return "_xxx_".join(reversed(abbrev_list)) + "_xxx"
 
     def identity(self) -> str:
-        self.id_group() + "_" + self.object.abbreviation + "_xxx"
+        return self.id_group() + "_" + self.object.abbreviation + "_xxx"
+
