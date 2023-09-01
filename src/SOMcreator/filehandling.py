@@ -52,6 +52,7 @@ def export_json(project: classes.Project, path: str) -> dict:
         project_dict[constants.VERSION] = project.version
         project_dict[constants.AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
         project_dict[constants.AGGREGATION_PSET] = project.aggregation_pset
+        project_dict[constants.CURRENT_PRJECT_PHASE] = project.current_project_phase
 
     def filL_basics(entity_dict, entity):
         """function gets called from all Entities"""
@@ -152,17 +153,22 @@ def import_json(project: classes.Project, path: str):
 
     with open(path, "r") as file:
         main_dict: dict = json.load(file)
+
     def load_project_data(project_dict:dict):
         project.name = project_dict.get(constants.NAME)
         project.author = project_dict.get(constants.AUTHOR)
         project.version = project_dict.get(constants.VERSION)
+
         pset = project_dict.get(constants.AGGREGATION_PSET)
         attribute = project_dict.get(constants.AGGREGATION_ATTRIBUTE)
+        project_phase = project_dict.get(constants.CURRENT_PRJECT_PHASE)
 
         if pset is not None:
             project.aggregation_pset = pset
         if attribute is not None:
             project.aggregation_attribute = attribute
+        if project_phase is not None:
+            project.current_project_phase = project_phase
 
     def load_basics(element_dict: dict) -> (str, str, str):
         name = element_dict[constants.NAME]

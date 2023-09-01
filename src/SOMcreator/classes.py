@@ -49,6 +49,7 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
+        self.current_project_phase = 0
 
     def open(self, path) -> dict:
         json_dict = filehandling.import_json(self, path)
