@@ -169,42 +169,43 @@ def import_json(project: classes.Project, path: str):
         description = element_dict[constants.DESCRIPTION]
         optional = element_dict[constants.OPTIONAL]
         parent = element_dict[constants.PARENT]
-        return name, description, optional, parent
+        project_phases = element_dict.get(constants.PROJECT_PHASES)
+        return name, description, optional, parent,project_phases
 
     def load_object(object_dict, identifier):
-        name, description, optional, parent = load_basics(object_dict)
+        name, description, optional, parent,project_phases = load_basics(object_dict)
         ifc_mapping = object_dict[constants.IFC_MAPPINGS]
         if isinstance(ifc_mapping, list):
             ifc_mapping = set(ifc_mapping)
 
         abbreviation = object_dict.get(constants.ABBREVIATION)
 
-        obj = classes.Object(name, None, identifier, ifc_mapping, description, optional, abbreviation)
+        obj = classes.Object(name, None, identifier, ifc_mapping, description, optional, abbreviation,project_phases)
         property_sets_dict = object_dict[constants.PROPERTY_SETS]
         for ident, pset_dict in property_sets_dict.items():
             load_pset(pset_dict, ident, obj)
         ident_attrib_id = object_dict[constants.IDENT_ATTRIBUTE]
-        ident_attrib = project.get_element_by_uuid(ident_attrib_id)
+        ident_attrib = classes.get_element_by_uuid(ident_attrib_id)
         obj.ident_attrib = ident_attrib
         parent_dict[obj] = parent
 
     def load_pset(pset_dict: dict, identifier: str, obj: classes.Object | None) -> None:
-        name, description, optional, parent = load_basics(pset_dict)
-        pset = classes.PropertySet(name, obj, identifier, description, optional)
+        name, description, optional, parent, project_phases = load_basics(pset_dict)
+        pset = classes.PropertySet(name, obj, identifier, description, optional,project_phases)
         attributes_dict = pset_dict[constants.ATTRIBUTES]
         for ident, attribute_dict in attributes_dict.items():
             load_attribute(attribute_dict, ident, pset)
         parent_dict[pset] = parent
 
     def load_attribute(attribute_dict: dict, identifier: str, property_set: classes.PropertySet) -> None:
-        name, description, optional, parent = load_basics(attribute_dict)
+        name, description, optional, parent, project_phases = load_basics(attribute_dict)
         value = attribute_dict[constants.VALUE]
         value_type = attribute_dict[constants.VALUE_TYPE]
         data_type = attribute_dict[constants.DATA_TYPE]
         child_inherits_value = attribute_dict[constants.CHILD_INHERITS_VALUE]
         revit_mapping = attribute_dict[constants.REVIT_MAPPING]
         attribute = classes.Attribute(property_set, name, value, value_type, data_type,
-                                      child_inherits_value, identifier, description, optional, revit_mapping)
+                                      child_inherits_value, identifier, description, optional, revit_mapping,project_phases)
         parent_dict[attribute] = parent
 
     def load_dict(dict_name: str) -> dict | None:
@@ -221,16 +222,16 @@ def import_json(project: classes.Project, path: str):
                 uuid_dict[uuid].add_child(element)
 
     def load_aggregation(aggregation_dict: dict, identifier: str, ):
-        name, description, optional, parent = load_basics(aggregation_dict)
+        name, description, optional, parent,project_phases = load_basics(aggregation_dict)
         object_uuid = aggregation_dict[constants.OBJECT]
-        obj = project.get_element_by_uuid(object_uuid)
+        obj = classes.get_element_by_uuid(object_uuid)
         parent_connection = aggregation_dict[constants.CONNECTION]
-        aggregation = classes.Aggregation(obj,parent_connection, identifier, description, optional)
+        aggregation = classes.Aggregation(obj,parent_connection, identifier, description, optional,project_phases)
         aggregation_parent_dict[aggregation] = (parent, parent_connection)
 
     def build_aggregation_structure():
         for aggregation, (uuid, connection_type) in aggregation_parent_dict.items():
-            parent = project.get_element_by_uuid(uuid)
+            parent = classes.get_element_by_uuid(uuid)
             if parent is not None:
                 parent.add_child(aggregation,connection_type)
 
