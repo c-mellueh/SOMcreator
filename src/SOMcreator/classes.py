@@ -10,6 +10,8 @@ from anytree import AnyNode
 from . import constants, filehandling
 from .external_software import excel
 # Add child to Parent leads to reverse
+from .filehandling import create_mapping_script
+
 
 
 def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
@@ -50,6 +52,9 @@ class Project(object):
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
         self.current_project_phase = 1
+
+    def create_mapping_script(self,pset_name:str,path:str):
+        create_mapping_script(self,pset_name,path)
 
     def open(self, path) -> dict:
         json_dict = filehandling.import_json(self, path)
