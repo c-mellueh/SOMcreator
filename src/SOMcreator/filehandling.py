@@ -46,7 +46,7 @@ def create_mapping_script(project: classes.Project, pset_name: str, path: str):
 
 
 def export_json(project: classes.Project, path: str) -> dict:
-    def create_project_data(project_dict:dict) -> None:
+    def create_project_data(project_dict: dict) -> None:
         project_dict[constants.NAME] = project.name
         project_dict[constants.AUTHOR] = project.author
         project_dict[constants.VERSION] = project.version
@@ -154,7 +154,7 @@ def import_json(project: classes.Project, path: str):
     with open(path, "r") as file:
         main_dict: dict = json.load(file)
 
-    def load_project_data(project_dict:dict):
+    def load_project_data(project_dict: dict):
         project.name = project_dict.get(constants.NAME)
         project.author = project_dict.get(constants.AUTHOR)
         project.version = project_dict.get(constants.VERSION)
@@ -176,17 +176,19 @@ def import_json(project: classes.Project, path: str):
         optional = element_dict[constants.OPTIONAL]
         parent = element_dict[constants.PARENT]
         project_phases = element_dict.get(constants.PROJECT_PHASES)
-        return name, description, optional, parent,project_phases
+        return name, description, optional, parent, project_phases
 
     def load_object(object_dict, identifier):
-        name, description, optional, parent,project_phases = load_basics(object_dict)
+        name, description, optional, parent, project_phases = load_basics(object_dict)
         ifc_mapping = object_dict[constants.IFC_MAPPINGS]
         if isinstance(ifc_mapping, list):
             ifc_mapping = set(ifc_mapping)
 
         abbreviation = object_dict.get(constants.ABBREVIATION)
 
-        obj = classes.Object(name, None, identifier, ifc_mapping, description, optional, abbreviation,project_phases)
+        obj = classes.Object(name=name, ident_attrib=None, uuid=identifier, ifc_mapping=ifc_mapping,
+                             description=description, optional=optional, abbreviation=abbreviation, project=project,
+                             project_phases=project_phases)
         property_sets_dict = object_dict[constants.PROPERTY_SETS]
         for ident, pset_dict in property_sets_dict.items():
             load_pset(pset_dict, ident, obj)
@@ -197,7 +199,8 @@ def import_json(project: classes.Project, path: str):
 
     def load_pset(pset_dict: dict, identifier: str, obj: classes.Object | None) -> None:
         name, description, optional, parent, project_phases = load_basics(pset_dict)
-        pset = classes.PropertySet(name, obj, identifier, description, optional,project_phases)
+        pset = classes.PropertySet(name=name, obj=obj, uuid=identifier, description=description, optional=optional,
+                                   project=project, project_phases=project_phases)
         attributes_dict = pset_dict[constants.ATTRIBUTES]
         for ident, attribute_dict in attributes_dict.items():
             load_attribute(attribute_dict, ident, pset)
@@ -210,8 +213,11 @@ def import_json(project: classes.Project, path: str):
         data_type = attribute_dict[constants.DATA_TYPE]
         child_inherits_value = attribute_dict[constants.CHILD_INHERITS_VALUE]
         revit_mapping = attribute_dict[constants.REVIT_MAPPING]
-        attribute = classes.Attribute(property_set, name, value, value_type, data_type,
-                                      child_inherits_value, identifier, description, optional, revit_mapping,project_phases)
+        attribute = classes.Attribute(property_set=property_set, name=name, value=value, value_type=value_type,
+                                      data_type=data_type,
+                                      child_inherits_values=child_inherits_value, uuid=identifier,
+                                      description=description, optional=optional, revit_mapping=revit_mapping,
+                                      project=project, project_phases=project_phases)
         parent_dict[attribute] = parent
 
     def load_dict(dict_name: str) -> dict | None:
@@ -228,18 +234,18 @@ def import_json(project: classes.Project, path: str):
                 uuid_dict[uuid].add_child(element)
 
     def load_aggregation(aggregation_dict: dict, identifier: str, ):
-        name, description, optional, parent,project_phases = load_basics(aggregation_dict)
+        name, description, optional, parent, project_phases = load_basics(aggregation_dict)
         object_uuid = aggregation_dict[constants.OBJECT]
         obj = classes.get_element_by_uuid(object_uuid)
         parent_connection = aggregation_dict[constants.CONNECTION]
-        aggregation = classes.Aggregation(obj,parent_connection, identifier, description, optional,project_phases)
+        aggregation = classes.Aggregation(obj, parent_connection, identifier, description, optional, project_phases)
         aggregation_parent_dict[aggregation] = (parent, parent_connection)
 
     def build_aggregation_structure():
         for aggregation, (uuid, connection_type) in aggregation_parent_dict.items():
             parent = classes.get_element_by_uuid(uuid)
             if parent is not None:
-                parent.add_child(aggregation,connection_type)
+                parent.add_child(aggregation, connection_type)
 
     project_dict = main_dict.get(constants.PROJECT)
     if project_dict is None:

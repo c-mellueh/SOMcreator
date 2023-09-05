@@ -240,7 +240,7 @@ class ExcelBlock(metaclass=ExcelIterator):
         if self.name.startswith("*"):
             optional = True
             obj_name= obj_name[1:]
-        obj = classes.Object(obj_name, ident_attrib,ifc_mapping=self.ifc_mapping(),optional=optional)
+        obj = classes.Object(obj_name, ident_attrib,ifc_mapping=self.ifc_mapping(),optional=optional,)
         if attributes:
             obj.add_property_set(self.pset)
         obj.add_property_set(ident_pset)

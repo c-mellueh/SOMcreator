@@ -20,7 +20,7 @@ XS_STRING = "xs:string"
 XS_DOUBLE = "xs:double"
 XS_BOOL = "xs:boolean"
 XS_INT = "xs:int"
-
+TEMPLATE_NAME = "template.txt"
 RANGE_STRINGS = ["Range", "range", "RANGE"]
 
 VALUE_TYPE_LOOKUP = {VALUE: "Value", FORMAT: "Format", RANGE: "Range", LIST: "List", }
