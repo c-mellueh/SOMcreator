@@ -7,18 +7,20 @@ import json
 import os
 import uuid
 import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import Element
 
 import jinja2
 from anytree import AnyNode
 from lxml import etree
 
 from .. import classes, constants, Template
-from ..Template import HOME_DIR,BOOKMARK_TEMPLATE
+from ..Template import HOME_DIR, BOOKMARK_TEMPLATE
+
 output_date_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 output_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
 
-def handle_header(project: classes.Project, export_format: str) -> etree._Element:
+def handle_header(project: classes.Project, export_format: str) -> Element:
     ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
     xml_header = etree.Element(f'{{http://www.w3.org/2001/XMLSchema-instance}}{export_format}')
     xml_header.set("user", str(project.author))
@@ -29,8 +31,8 @@ def handle_header(project: classes.Project, export_format: str) -> etree._Elemen
 
 ##TODO add xs:bool
 
-def export_modelcheck(project, path: str, project_tree=None) -> None:
-    def add_js_rule(parent: etree._Element, file: codecs.StreamReaderWriter) -> str | None:
+def export_modelcheck(project: classes.Project, path: str, project_tree=None) -> None:
+    def add_js_rule(parent: Element, file: codecs.StreamReaderWriter) -> str | None:
         name = os.path.basename(file.name)
         if not name.endswith(".js"):
             return None
@@ -51,17 +53,17 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
 
         return file
 
-    def handle_element_section(xml_qa_export: etree._Element) -> etree._Element:
+    def handle_element_section(xml_qa_export: Element) -> Element:
         xml_element_section = etree.SubElement(xml_qa_export, "elementSection")
         return xml_element_section
 
-    def handle_container(xml_element_section: etree._Element, text) -> etree._Element:
+    def handle_container(xml_element_section: Element, text) -> Element:
         container = etree.SubElement(xml_element_section, "container")
         container.set("ID", str(uuid.uuid4()))
         container.set("name", text)
         return container
 
-    def handle_checkrun(xml_container: etree._Element, name: str, author: str = "DesiteRuleCreator") -> etree._Element:
+    def handle_checkrun(xml_container: Element, name: str, author: str = "DesiteRuleCreator") -> Element:
         checkrun = etree.SubElement(xml_container, "checkrun")
         _uuid = str(uuid.uuid4())
         checkrun.set("ID", _uuid)
@@ -79,14 +81,14 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
         checkrun.set("createUndefined", "false")
         return checkrun
 
-    def init_xml(project) -> (etree._Element, etree._Element):
+    def init_xml() -> (Element, Element):
         xml_qa_export = handle_header(project, "qaExport")
         xml_element_section = handle_element_section(xml_qa_export)
         text = f"{project.name} : {project.version}"
         xml_container = handle_container(xml_element_section, text)
         return xml_container, xml_qa_export
 
-    def handle_rule(xml_checkrun: etree._Element, rule_type: str) -> etree._Element:
+    def handle_rule(xml_checkrun: Element, rule_type: str) -> Element:
         rule = etree.SubElement(xml_checkrun, "rule")
         rule.set("type", rule_type)
         if rule_type == "UniquePattern":
@@ -96,21 +98,19 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
 
         return rule
 
-    def handle_attribute_rule_list(xml_rule: etree._Element) -> etree._Element:
+    def handle_attribute_rule_list(xml_rule: Element) -> Element:
         attribute_rule_list = etree.SubElement(xml_rule, "attributeRuleList")
         return attribute_rule_list
 
     def handle_template() -> jinja2.Template:
-        path = Template.HOME_DIR
-        file_loader = jinja2.FileSystemLoader(path)
+        file_loader = jinja2.FileSystemLoader(Template.HOME_DIR)
         env = jinja2.Environment(loader=file_loader)
         env.trim_blocks = True
         env.lstrip_blocks = True
-        template = env.get_template("template.txt")
-
+        template = env.get_template(constants.TEMPLATE_NAME)
         return template
 
-    def define_xml_elements(xml_container: etree._Element, name: str) -> (etree._Element, etree._Element):
+    def define_xml_elements(xml_container: Element, name: str) -> (Element, Element):
         xml_checkrun = handle_checkrun(xml_container, name=name, author=project.author)
         xml_rule = handle_rule(xml_checkrun, "Attributes")
         xml_attribute_rule_list = handle_attribute_rule_list(xml_rule)
@@ -118,7 +118,7 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
 
         return xml_checkrun, xml_attribute_rule_list
 
-    def handle_js_rules(xml_attribute_rule_list: etree._Element, starts_with: str) -> None:
+    def handle_js_rules(xml_attribute_rule_list: Element, starts_with: str) -> None:
         folder = os.path.join(Template.HOME_DIR, constants.FILEPATH_JS)
 
         for fn in os.listdir(folder):
@@ -126,19 +126,19 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
                 file = codecs.open(f"{folder}/{fn}", encoding="utf-8")
                 add_js_rule(xml_attribute_rule_list, file)
 
-    def handle_rule_script(xml_attribute_rule_list: etree._Element, name: str) -> etree._Element:
+    def handle_rule_script(xml_attribute_rule_list: Element, name: str) -> Element:
         rule_script = etree.SubElement(xml_attribute_rule_list, "ruleScript")
         rule_script.set("name", name)
         rule_script.set("active", "true")
         rule_script.set("resume", "true")
         return rule_script
 
-    def handle_code(xml_rule_script: etree._Element) -> etree._Element:
+    def handle_code(xml_rule_script: Element) -> Element:
         code = etree.SubElement(xml_rule_script, "code")
         return code
 
-    def handle_object_rules(base_xml_container: etree._Element, template: jinja2.Template) -> dict[
-        etree._Element, classes.Object]:
+    def handle_object_rules(base_xml_container: Element, template: jinja2.Template) -> dict[
+        Element, classes.Object]:
 
         def handle_tree_structure(parent_xml_container, parent_node: AnyNode) -> None:
 
@@ -156,7 +156,9 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
                 xml_rule_script = handle_rule_script(xml_attribute_rule_list, name=obj.name)
                 xml_code = handle_code(xml_rule_script)
 
-                property_sets = [pset for pset in obj.property_sets if len(pset.attributes) > 0]
+                property_sets = [pset for pset in obj.property_sets if
+                                 len(pset.attributes) > 0 and pset.project_phases[project_phase_list_index]]
+
                 ident_name = obj.ident_attrib.name
                 ident_property_set = obj.ident_attrib.property_set.name
                 if ident_property_set == constants.IGNORE_PSET:
@@ -165,7 +167,7 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
                     ident_property_set = f"{ident_property_set}:"
 
                 cdata_code = template.render(psets=property_sets, object=obj, ident=ident_name,
-                                             ident_pset=ident_property_set, constants=constants)
+                                             ident_pset=ident_property_set, constants=constants,project_phase= project_phase_list_index)
                 xml_code.text = cdata_code
                 handle_rule(xml_checkrun, "UniquePattern")
 
@@ -176,16 +178,16 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
             else:
                 create_object(parent_xml_container, parent_node)
 
-        xml_object_dict: dict[etree._Element, classes.Object] = dict()
+        xml_object_dict: dict[Element, classes.Object] = dict()
         root_nodes = project_tree.children
 
         for root_node in sorted(root_nodes, key=lambda x: x.id):
             handle_tree_structure(base_xml_container, root_node)
         return xml_object_dict
 
-    def handle_data_section(xml_qa_export: etree._Element, xml_checkrun_first: etree._Element,
-                            xml_checkrun_obj: dict[etree._Element, classes.Object],
-                            xml_checkrun_last: etree._Element) -> None:
+    def handle_data_section(xml_qa_export: Element, xml_checkrun_first: Element,
+                            xml_checkrun_obj: dict[Element, classes.Object],
+                            xml_checkrun_last: Element) -> None:
         def get_name() -> str:
             """Transorms native IFC Attributes like IfcType into desite Attributes"""
 
@@ -221,7 +223,7 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
         xml_filter.set("dt", "xs:string")
         xml_filter.set("pattern", '"Ungeprüft"')
 
-    def handle_property_section(xml_qa_export: etree._Element) -> None:
+    def handle_property_section(xml_qa_export: Element) -> None:
         repository = etree.SubElement(xml_qa_export, "repository")
         property_type_section = etree.SubElement(repository, "propertyTypeSection")
         ptype = etree.SubElement(property_type_section, "ptype")
@@ -234,10 +236,9 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
 
         property_section = etree.SubElement(repository, "propertySection")
 
-    def export(path: str) -> None:
-
+    def export() -> None:
         template = handle_template()
-        xml_container, xml_qa_export = init_xml(project)
+        xml_container, xml_qa_export = init_xml()
         xml_checkrun_first, xml_attribute_rule_list = define_xml_elements(xml_container, "initial_tests")
         handle_js_rules(xml_attribute_rule_list, "start")
         xml_checkrun_obj = handle_object_rules(xml_container, template)
@@ -252,13 +253,14 @@ def export_modelcheck(project, path: str, project_tree=None) -> None:
 
     if project_tree is None:
         project_tree = project.tree()
-    export(path)
+    project_phase_list_index = project.current_project_phase - 1
+    export()
 
 
 def export_bs(project: classes.Project, path: str) -> None:
-    def handle_elementsection(xml_parent: etree._Element):
+    def handle_elementsection(xml_parent: Element):
 
-        def handle_section(aggregation: classes.Aggregation, xml_item: etree._Element) -> None:
+        def handle_section(aggregation: classes.Aggregation, xml_item: Element) -> None:
 
             nonlocal id_dict
             xml_child = etree.SubElement(xml_item, "section")
@@ -270,7 +272,9 @@ def export_bs(project: classes.Project, path: str) -> None:
             xml_child.set("takt", "")
 
             for child in sorted(aggregation.children, key=lambda x: x.name):
-                connection_type = aggregation.connection_dict[child]
+                if not child.object.project_phases[project_phase_list_index]:
+                    continue
+                connection_type = child.parent_connection
                 if connection_type == constants.AGGREGATION:
                     handle_section(child, xml_child)
                 else:
@@ -285,7 +289,7 @@ def export_bs(project: classes.Project, path: str) -> None:
         xml_root.set("takt", "")
 
         root_objects: list[classes.Aggregation] = [aggreg for aggreg in classes.Aggregation if
-                                                   aggreg.is_root]
+                                                   aggreg.is_root and aggreg.object.project_phases[project_phase_list_index]]
 
         root_objects.sort(key=lambda x: x.name)
 
@@ -295,7 +299,7 @@ def export_bs(project: classes.Project, path: str) -> None:
 
         return xml_elementsection, id_dict
 
-    def handle_repository(xml_parent: etree._Element, id_dict: dict[classes.Aggregation, str]) -> None:
+    def handle_repository(xml_parent: Element, id_dict: dict[classes.Aggregation, str]) -> None:
         def handle_property_type_section() -> dict[str, int]:
             xml_property_type_section = etree.SubElement(xml_repo, "propertyTypeSection")
 
@@ -303,6 +307,8 @@ def export_bs(project: classes.Project, path: str) -> None:
 
             i = 1
             for attribute in classes.Attribute:
+                if not attribute.project_phases[project_phase_list_index]:
+                    continue
                 # use attribute_text instead of attribute to remove duplicates
                 attribute_text = f"{attribute.property_set.name}:{attribute.name}"
                 if attribute_text not in attribute_dict:
@@ -323,7 +329,11 @@ def export_bs(project: classes.Project, path: str) -> None:
             for node, ref_id in id_dict.items():
                 obj = node.object
                 for property_set in obj.property_sets:
+                    if not property_set.project_phases[project_phase_list_index]:
+                        continue
                     for attribute in property_set.attributes:
+                        if not attribute.project_phases[project_phase_list_index]:
+                            continue
                         attribute_text = f"{attribute.property_set.name}:{attribute.name}"
                         ref_type = attribute_dict[attribute_text]
                         xml_property = etree.SubElement(xml_property_section, "property")
@@ -345,9 +355,8 @@ def export_bs(project: classes.Project, path: str) -> None:
         attribute_dict = handle_property_type_section()
         handle_property_section()
 
-    def handle_relation_section(xml_parent: etree._Element) -> None:
+    def handle_relation_section(xml_parent: Element) -> None:
         xml_relation_section = etree.SubElement(xml_parent, "relationSection")
-
         xml_id_mapping = etree.SubElement(xml_relation_section, "IDMapping")
         xml_relation = etree.SubElement(xml_relation_section, "relation")
         xml_relation.set("name", "default")
@@ -356,8 +365,8 @@ def export_bs(project: classes.Project, path: str) -> None:
         xml_boq_export = handle_header(project, "bsExport")
         xml_elementsection, id_dict = handle_elementsection(xml_boq_export)
 
-        xml_link_section = etree.SubElement(xml_boq_export, "linkSection")
-        xml_repository = handle_repository(xml_boq_export, id_dict)
+        etree.SubElement(xml_boq_export, "linkSection")
+        handle_repository(xml_boq_export, id_dict)
         handle_relation_section(xml_boq_export)
 
         tree = etree.ElementTree(xml_boq_export)
@@ -365,19 +374,22 @@ def export_bs(project: classes.Project, path: str) -> None:
         with open(path, "wb") as f:
             tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
 
+    project_phase_list_index = project.current_project_phase - 1
     if path:
         export()
         pass
 
 
-def export_bookmarks(proj:classes.Project,path: str) -> None:
+def export_bookmarks(proj: classes.Project, path: str) -> None:
     def handle_bookmark_list() -> etree.ElementTree:
         xml_bookmarks = etree.Element("bookmarks")
         xml_bookmarks.set("xmlnsxsi", "http://www.w3.org/2001/XMLSchema-instance")
         xml_bookmark_list = etree.SubElement(xml_bookmarks, "cBookmarkList")
 
         obj: classes.Object
-        for obj in sorted(proj.objects, key=lambda x: x.ident_attrib.value[0]):
+        for obj in sorted(proj.objects, key=lambda o: o.ident_value):
+            if not obj.project_phases[project_phase_list_index]:
+                continue
             xml_bookmark = etree.SubElement(xml_bookmark_list, "cBookmark")
             xml_bookmark.set("ID", str(obj.uuid))
 
@@ -394,14 +406,18 @@ def export_bookmarks(proj:classes.Project,path: str) -> None:
             xml_col.set("v", text)
 
             for property_set in obj.property_sets:
+                if not property_set.project_phases[project_phase_list_index]:
+                    continue
                 for attribute in property_set.attributes:
+                    if not attribute.project_phases[project_phase_list_index]:
+                        continue
                     if attribute != obj.ident_attrib:
                         xml_col = etree.SubElement(xml_bookmark, "col")
                         text = f"{property_set.name}:{attribute.name}##{attribute.data_type}"
                         xml_col.set("v", text)
         return etree.ElementTree(xml_bookmarks)
 
-    def get_attribute_dict() -> dict[str,str]:
+    def get_attribute_dict() -> dict[str, str]:
         attribute_dict = {}
         for obj in proj.objects:
             for property_set in obj.property_sets:
@@ -409,9 +425,10 @@ def export_bookmarks(proj:classes.Project,path: str) -> None:
                     attribute_dict[f"{property_set.name}:{attribute.name}"] = attribute.data_type
 
         return attribute_dict
+
+    project_phase_list_index = proj.current_project_phase - 1
     if not os.path.isdir(path):
         return
-
 
     with open(os.path.join(path, "bookmarks.bkxml"), "wb") as f:
         tree = handle_bookmark_list()

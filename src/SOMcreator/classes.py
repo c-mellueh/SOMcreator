@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 from typing import Iterator
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ from anytree import AnyNode
 
 from . import constants, filehandling
 from .external_software import excel
+# Add child to Parent leads to reverse
 
 
 def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
@@ -25,8 +27,6 @@ def get_element_by_uuid(uuid: str) -> Attribute | PropertySet | Object | Aggrega
     if uuid is None:
         return None
     return get_uuid_dict().get(uuid)
-
-# Add child to Parent leads to reverse
 
 
 class IterRegistry(type):
@@ -49,7 +49,7 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
-        self.current_project_phase = 0
+        self.current_project_phase = 1
 
     def open(self, path) -> dict:
         json_dict = filehandling.import_json(self, path)
@@ -128,15 +128,23 @@ class Project(object):
     def import_excel(self, path: str, ws_name: str) -> None:
         excel.open_file(path, ws_name)
 
-    @property
-    def objects(self) -> Iterator[Object]:
+    def get_all_objects(self) -> Iterator[Object]:
         return iter(Object)
 
     @property
-    def aggregations(self) -> Iterator[Aggregation]:
+    def objects(self) -> Iterator[Object]:
+        objects = list(Object)
+        return filter(lambda obj: obj.project_phases[self.current_project_phase - 1], objects)
+
+    def get_all_aggregations(self) -> Iterator[Aggregation]:
         return iter(Aggregation)
 
-    def tree(self) -> AnyNode:
+    @property
+    def aggregations(self) -> Iterator[Aggregation]:
+        aggregations = list(Aggregation)
+        return filter(lambda aggreg: aggreg.object.project_phases[self.current_project_phase - 1], aggregations)
+
+    def tree(self, only_current_project_phase: bool = True) -> AnyNode:
         def create_childen(node: AnyNode):
             obj: Object = node.obj
             for child in obj.children:
@@ -144,7 +152,15 @@ class Project(object):
                 create_childen(child_node)
 
         base = AnyNode(id=self.name, obj=self)
-        root_objects = [AnyNode(id=obj.name, obj=obj, parent=base) for obj in Object if obj.parent is None]
+        root_objects = list()
+        for obj in self.objects:
+            if obj.parent is not None:
+                continue
+            if only_current_project_phase:
+                if not obj.project_phases[self.current_project_phase - 1]:
+                    continue
+            root_objects.append(AnyNode(id=obj.name, obj=obj, parent=base))
+
         for n in root_objects:
             create_childen(n)
         return base
@@ -156,8 +172,9 @@ class Project(object):
 class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
+                 project: Project | None = None,
                  project_phases: list[bool] | None = None) -> None:
-
+        self._project = project
         self.project_phases = project_phases
         self._parent = None
         self._children = set()
@@ -177,6 +194,14 @@ class Hirarchy(object, metaclass=IterRegistry):
 
         if self.project_phases is None:
             self.project_phases: list[bool] = [True for _ in range(9)]
+
+    def _get_project(self, parent_element: Object | PropertySet) -> Project | None:
+        if self._project is not None:
+            return self._project
+
+        if parent_element is not None:
+            return parent_element.project
+        return None
 
     @property
     def optional_wo_hirarchy(self) -> bool:
@@ -269,12 +294,190 @@ class Hirarchy(object, metaclass=IterRegistry):
             self._registry.remove(self)
 
 
+class Object(Hirarchy):
+    _registry: set[Object] = set()
+
+    def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
+                 ifc_mapping: set[str] | None = None, description: None | str = None,
+                 optional: None | bool = None, abbreviation: None | str = None, project: None | Project = None,
+                 project_phases: None | list[bool] = None) -> None:
+        super(Object, self).__init__(name, description, optional, project, project_phases)
+        self._registry.add(self)
+        self._property_sets: list[PropertySet] = list()
+        self._ident_attrib = ident_attrib
+        self._aggregations: set[Aggregation] = set()
+        self.custom_attribues = {}
+
+        self._abbreviation = abbreviation
+        if abbreviation is None:
+            self._abbreviation = ""
+
+        self._ifc_mapping = ifc_mapping
+        if ifc_mapping is None:
+            self._ifc_mapping = {"IfcBuildingElementProxy"}
+
+        self.uuid = uuid
+        if uuid is None:
+            self.uuid = str(uuid4())
+
+        self.changed = True
+
+    def __str__(self):
+        return f"Object {self.name}"
+
+    def __lt__(self, other: Object):
+        return self.ident_value < other.ident_value
+
+    @property
+    def project(self) -> Project | None:
+        return self._project
+
+    @property
+    def abbreviation(self) -> str:
+        return self._abbreviation
+
+    @abbreviation.setter
+    def abbreviation(self, value) -> None:
+        self._abbreviation = value
+
+    @property
+    def ifc_mapping(self) -> set[str]:
+        return self._ifc_mapping
+
+    @ifc_mapping.setter
+    def ifc_mapping(self, value: set[str]):
+        value_set = set()
+        for item in value:  # filter empty Inputs
+            if not (item == "" or item is None):
+                value_set.add(item)
+        self._ifc_mapping = value_set
+
+    def add_ifc_map(self, value: str) -> None:
+        self._ifc_mapping.add(value)
+
+    def remove_ifc_map(self, value: str) -> None:
+        self._ifc_mapping.remove(value)
+
+    @property
+    def aggregations(self) -> set[Aggregation]:
+        return self._aggregations
+
+    def add_aggregation(self, node: Aggregation) -> None:
+        self._aggregations.add(node)
+
+    def remove_aggregation(self, node: Aggregation) -> None:
+        self.aggregations.remove(node)
+
+    @property
+    def inherited_property_sets(self) -> dict[Object, list[PropertySet]]:
+        def recursion(recursion_property_sets, recursion_obj: Object):
+            psets = recursion_obj.property_sets
+
+            if psets:
+                recursion_property_sets[recursion_obj] = psets
+
+            parent = recursion_obj.parent
+            if parent is not None:
+                recursion_property_sets = recursion(recursion_property_sets, parent)
+            return recursion_property_sets
+
+        property_sets = dict()
+        if self.parent is not None:
+            inherited_property_sets = recursion(property_sets, self.parent)
+        else:
+            inherited_property_sets = dict()
+
+        return inherited_property_sets
+
+    @property
+    def is_concept(self) -> bool:
+        if isinstance(self.ident_attrib, Attribute):
+            return False
+        else:
+            return True
+
+    @property
+    def ident_attrib(self) -> Attribute:
+        return self._ident_attrib
+
+    @ident_attrib.setter
+    def ident_attrib(self, value: Attribute) -> None:
+        self._ident_attrib = value
+        self.changed = True
+
+    def get_all_property_sets(self) -> list[PropertySet]:
+        """returns all Propertysets even if they dont fit the current Project Phase"""
+        return self._property_sets
+
+    @property
+    def property_sets(self) -> list[PropertySet]:
+        """returns PropertySets filtered by ProjectPhase
+        -> If Project is not defined it returns all PropertySets"""
+        if self.project is None:
+            logging.warning(f"Project for Object {self} is not defined")
+            property_sets = self.get_all_property_sets()
+        else:
+            property_sets = {pset for pset in self._property_sets if
+                             pset.project_phases[self.project.current_project_phase - 1]}
+        return sorted(property_sets, key=lambda x: x.name)
+
+    # override name setter because of intheritance
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        self._name = value
+        self.changed = True
+
+    def add_property_set(self, property_set: PropertySet) -> None:
+        self._property_sets.append(property_set)
+        property_set.object = self
+
+    def remove_property_set(self, property_set: PropertySet) -> None:
+        if property_set in self._property_sets:
+            self._property_sets.remove(property_set)
+
+    def get_attributes(self, inherit: bool = False) -> list[Attribute]:
+        attributes = list()
+        for property_set in self.property_sets:
+            attributes += property_set.attributes
+
+        if inherit:
+            attributes += self.parent.get_attributes(inherit=True)
+
+        return attributes
+
+    def delete(self) -> None:
+        Object._registry.remove(self)
+        pset: PropertySet
+        for pset in self.property_sets:
+            pset.delete()
+
+        for aggregation in self.aggregations.copy():
+            aggregation.delete()
+
+    def get_property_set_by_name(self, property_set_name: str) -> PropertySet | None:
+        for property_set in self.property_sets:
+            if property_set.name == property_set_name:
+                return property_set
+        return None
+
+    @property
+    def ident_value(self) -> str:
+        if self.is_concept:
+            return str()
+        return ";".join(str(x) for x in self.ident_attrib.value)
+
+
 class PropertySet(Hirarchy):
     _registry: set[PropertySet] = set()
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
-                 optional: None | bool = None, project_phases: None| list[bool] = None) -> None:
-        super(PropertySet, self).__init__(name, description, optional,project_phases)
+                 optional: None | bool = None, project: None | Project = None,
+                 project_phases: None | list[bool] = None) -> None:
+        super(PropertySet, self).__init__(name, description, optional, project, project_phases)
         self._attributes = set()
         self._object = None
         if obj is not None:
@@ -328,6 +531,10 @@ class PropertySet(Hirarchy):
                 self.object.remove_property_set(self)
 
     @property
+    def project(self) -> Project | None:
+        return self._get_project(self.object)
+
+    @property
     def object(self) -> Object:
         return self._object
 
@@ -336,9 +543,19 @@ class PropertySet(Hirarchy):
         self._object = value
         self.changed = True
 
+    def get_all_attributes(self) -> set[Attribute]:
+        """returns all Attributes even if they don't fit the current Project Phase"""
+        return self._attributes
+
     @property
     def attributes(self) -> set[Attribute]:
-        return self._attributes
+        """returns Attributes filtered by ProjectPhase
+        -> If Project is not defined it returns all Attributes"""
+        attributes = self.get_all_attributes()
+        if self.project is not None:
+            attributes = {attribute for attribute in attributes if
+                          attribute.project_phases[self.project.current_project_phase - 1]}
+        return attributes
 
     @attributes.setter
     def attributes(self, value: set[Attribute]) -> None:
@@ -382,20 +599,8 @@ class PropertySet(Hirarchy):
             self.remove_attribute(attribute)
         self._parent = None
 
-    def __copy__(self):
-        new_pset = PropertySet(self.name)
-
-        for attribute in self.attributes:
-            new_attrib = copy.copy(attribute)
-            new_pset.add_attribute(new_attrib)
-
-        if self.parent is not None:
-            self.parent.add_child(new_pset)
-
-        return new_pset
-
     def create_child(self, name) -> PropertySet:
-        child = PropertySet(name)
+        child = PropertySet(name=name, project=self.project)
         self.children.add(child)
         child.parent = self
         for attribute in self.attributes:
@@ -410,9 +615,10 @@ class Attribute(Hirarchy):
     def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: int,
                  data_type: str = "xs:string",
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
-                 optional: None | bool = None, revit_mapping: None | str = None, project_phases: None| list[bool] = None):
+                 optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
+                 project_phases: None | list[bool] = None):
 
-        super(Attribute, self).__init__(name, description, optional, project_phases)
+        super(Attribute, self).__init__(name, description, optional, project, project_phases)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -441,6 +647,10 @@ class Attribute(Hirarchy):
             return self.name < other.name
         else:
             return self.name < other
+
+    @property
+    def project(self) -> Project | None:
+        return self._get_project(self.property_set)
 
     @property
     def revit_name(self) -> str:
@@ -570,172 +780,13 @@ class Attribute(Hirarchy):
         return child
 
     def __copy__(self) -> Attribute:
-        new_attrib: Attribute = Attribute(None, self.name, self.value,
-                                          self.value_type, self.data_type, self.child_inherits_values)
+        new_attrib: Attribute = Attribute(property_set=None, name=self.name, value=self.value,
+                                          value_type=self.value_type, data_type=self.data_type,
+                                          child_inherits_values=self.child_inherits_values, project=self.project,
+                                          project_phases=self.project_phases)
         if self.parent is not None:
             self.parent.add_child(new_attrib)
         return new_attrib
-
-
-class Object(Hirarchy):
-    _registry: set[Object] = set()
-
-    def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
-                 ifc_mapping: set[str] | None = None, description: None | str = None,
-                 optional: None | bool = None, abbreviation: None | str = None, project_phases: None| list[bool] = None) -> None:
-        super(Object, self).__init__(name, description, optional,project_phases)
-        self._registry.add(self)
-
-        self._property_sets: list[PropertySet] = list()
-        self._ident_attrib = ident_attrib
-        self._aggregations: set[Aggregation] = set()
-        self.custom_attribues = {}
-
-        self._abbreviation = abbreviation
-        if abbreviation is None:
-            self._abbreviation = ""
-
-        self._ifc_mapping = ifc_mapping
-        if ifc_mapping is None:
-            self._ifc_mapping = {"IfcBuildingElementProxy"}
-
-        self.uuid = uuid
-        if uuid is None:
-            self.uuid = str(uuid4())
-
-        self.changed = True
-
-    def __str__(self):
-        return f"Object {self.name}"
-
-    def __lt__(self, other: Object):
-        return self.ident_value < other.ident_value
-
-    @property
-    def abbreviation(self) -> str:
-        return self._abbreviation
-
-    @abbreviation.setter
-    def abbreviation(self, value) -> None:
-        self._abbreviation = value
-
-    @property
-    def ifc_mapping(self) -> set[str]:
-        return self._ifc_mapping
-
-    @ifc_mapping.setter
-    def ifc_mapping(self, value: set[str]):
-        value_set = set()
-        for item in value:  # filter empty Inputs
-            if not (item == "" or item is None):
-                value_set.add(item)
-        self._ifc_mapping = value_set
-
-    def add_ifc_map(self, value: str) -> None:
-        self._ifc_mapping.add(value)
-
-    def remove_ifc_map(self, value: str) -> None:
-        self._ifc_mapping.remove(value)
-
-    @property
-    def aggregations(self) -> set[Aggregation]:
-        return self._aggregations
-
-    def add_aggregation(self, node: Aggregation) -> None:
-        self._aggregations.add(node)
-
-    def remove_aggregation(self, node: Aggregation) -> None:
-        self.aggregations.remove(node)
-
-    @property
-    def inherited_property_sets(self) -> dict[Object, list[PropertySet]]:
-        def recursion(recursion_property_sets, recursion_obj: Object):
-            psets = recursion_obj.property_sets
-
-            if psets:
-                recursion_property_sets[recursion_obj] = psets
-
-            parent = recursion_obj.parent
-            if parent is not None:
-                recursion_property_sets = recursion(recursion_property_sets, parent)
-            return recursion_property_sets
-
-        property_sets = dict()
-        if self.parent is not None:
-            inherited_property_sets = recursion(property_sets, self.parent)
-        else:
-            inherited_property_sets = dict()
-
-        return inherited_property_sets
-
-    @property
-    def is_concept(self) -> bool:
-        if isinstance(self.ident_attrib, Attribute):
-            return False
-        else:
-            return True
-
-    @property
-    def ident_attrib(self) -> Attribute:
-        return self._ident_attrib
-
-    @ident_attrib.setter
-    def ident_attrib(self, value: Attribute) -> None:
-        self._ident_attrib = value
-        self.changed = True
-
-    @property
-    def property_sets(self) -> list[PropertySet]:
-        return self._property_sets
-
-    # override name setter because of intheritance
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, value: str):
-        self._name = value
-        self.changed = True
-
-    def add_property_set(self, property_set: PropertySet) -> None:
-        self._property_sets.append(property_set)
-        property_set.object = self
-
-    def remove_property_set(self, property_set: PropertySet) -> None:
-        if property_set in self._property_sets:
-            self._property_sets.remove(property_set)
-
-    def get_attributes(self, inherit: bool = False) -> list[Attribute]:
-        attributes = list()
-        for property_set in self.property_sets:
-            attributes += property_set.attributes
-
-        if inherit:
-            attributes += self.parent.get_attributes(inherit=True)
-
-        return attributes
-
-    def delete(self) -> None:
-        Object._registry.remove(self)
-        pset: PropertySet
-        for pset in self.property_sets:
-            pset.delete()
-
-        for aggregation in self.aggregations.copy():
-            aggregation.delete()
-
-    def get_property_set_by_name(self, property_set_name: str) -> PropertySet | None:
-        for property_set in self.property_sets:
-            if property_set.name == property_set_name:
-                return property_set
-        return None
-
-    @property
-    def ident_value(self) -> str:
-        if self.is_concept:
-            return str()
-        return ";".join(str(x) for x in self.ident_attrib.value)
 
 
 class Aggregation(Hirarchy):
@@ -746,8 +797,8 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None,project_phases: None| list[bool] = None ):
-        super(Aggregation, self).__init__(obj.name, description, optional,project_phases)
+                 optional: None | bool = None, project_phases: None | list[bool] = None):
+        super(Aggregation, self).__init__(obj.name, description, optional, project_phases)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
@@ -765,6 +816,10 @@ class Aggregation(Hirarchy):
             self.parent.children.remove(self)
         for child in self.children:
             child.parent = None
+
+    @property
+    def project(self) -> Project | None:
+        return self.object.project
 
     @property
     def parent_connection(self):
@@ -838,4 +893,3 @@ class Aggregation(Hirarchy):
 
     def identity(self) -> str:
         return self.id_group() + "_" + self.object.abbreviation + "_xxx"
-
