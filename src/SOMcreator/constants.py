@@ -37,7 +37,7 @@ IGNORE_PSET = "IFC"
 INHERITED_TEXT = "Predefined Pset"
 
 # json export
-CURRENT_PRJECT_PHASE = "current_project_phase"
+CURRENT_PR0JECT_PHASE = "current_project_phase"
 PROJECT_PHASES = "ProjectPhases"
 AGGREGATION_PSET = "AggregationPsetName"
 AGGREGATION_ATTRIBUTE = "AggregationAttributeName"

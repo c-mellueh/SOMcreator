@@ -52,13 +52,14 @@ def export_json(project: classes.Project, path: str) -> dict:
         project_dict[constants.VERSION] = project.version
         project_dict[constants.AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
         project_dict[constants.AGGREGATION_PSET] = project.aggregation_pset
-        project_dict[constants.CURRENT_PRJECT_PHASE] = project.current_project_phase
+        project_dict[constants.CURRENT_PR0JECT_PHASE] = project.current_project_phase
+        project_dict[constants.PROJECT_PHASES] = project.project_phases
 
-    def filL_basics(entity_dict, entity):
+    def fill_basics(entity_dict, entity):
         """function gets called from all Entities"""
         entity_dict[constants.NAME] = entity.name
         entity_dict[constants.OPTIONAL] = entity.optional
-        entity_dict[constants.PROJECT_PHASES] = entity.project_phases
+        entity_dict[constants.PROJECT_PHASES] = entity.get_project_phase_dict()
         if entity.parent is not None:
             parent = entity.parent.uuid
         else:
@@ -68,7 +69,7 @@ def export_json(project: classes.Project, path: str) -> dict:
 
     def create_attribute_entry(attributes_dict, attribute):
         attribute_dict = dict()
-        filL_basics(attribute_dict, attribute)
+        fill_basics(attribute_dict, attribute)
         attribute_dict[constants.DATA_TYPE] = attribute.data_type
         attribute_dict[constants.VALUE_TYPE] = attribute.value_type
         attribute_dict[constants.CHILD_INHERITS_VALUE] = attribute.child_inherits_values
@@ -78,7 +79,7 @@ def export_json(project: classes.Project, path: str) -> dict:
 
     def create_pset_entry(psets_dict: dict, pset: classes.PropertySet):
         pset_dict = dict()
-        filL_basics(pset_dict, pset)
+        fill_basics(pset_dict, pset)
         attributes_dict = dict()
         for attribute in pset.attributes:
             create_attribute_entry(attributes_dict, attribute)
@@ -88,7 +89,7 @@ def export_json(project: classes.Project, path: str) -> dict:
     def create_object_entry(objects_dict: dict, object: classes.Object):
 
         object_dict = dict()
-        filL_basics(object_dict, object)
+        fill_basics(object_dict, object)
 
         if isinstance(obj.ifc_mapping, set):
             object_dict[constants.IFC_MAPPINGS] = list(object.ifc_mapping)
@@ -110,7 +111,7 @@ def export_json(project: classes.Project, path: str) -> dict:
 
     def create_aggregation_entry(aggregations_dict, aggregation: classes.Aggregation):
         aggregation_dict = dict()
-        filL_basics(aggregation_dict, aggregation)
+        fill_basics(aggregation_dict, aggregation)
         aggregation_dict[constants.OBJECT] = aggregation.object.uuid
         if aggregation.parent is not None:
             aggregation_dict[constants.PARENT] = aggregation.parent.uuid
@@ -161,14 +162,18 @@ def import_json(project: classes.Project, path: str):
 
         pset = project_dict.get(constants.AGGREGATION_PSET)
         attribute = project_dict.get(constants.AGGREGATION_ATTRIBUTE)
-        project_phase = project_dict.get(constants.CURRENT_PRJECT_PHASE)
+        current_project_phase = project_dict.get(constants.CURRENT_PR0JECT_PHASE)
+        project_phases = project_dict.get(constants.PROJECT_PHASES)
 
         if pset is not None:
             project.aggregation_pset = pset
         if attribute is not None:
             project.aggregation_attribute = attribute
-        if project_phase is not None:
-            project.current_project_phase = project_phase
+        if project_phases is not None:
+            project.project_phases = project_phases
+
+        if current_project_phase is not None:
+            project.current_project_phase = current_project_phase
 
     def load_basics(element_dict: dict) -> (str, str, str):
         name = element_dict[constants.NAME]
