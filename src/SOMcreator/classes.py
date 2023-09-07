@@ -51,7 +51,23 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
-        self.current_project_phase = 1
+        self._current_project_phase = "Standart"
+        self.project_phases = ["Standart"]
+
+    @property
+    def current_project_phase(self):
+        if self._current_project_phase in self.project_phases:
+            return self._current_project_phase
+        else:
+            logging.error(f"'{self._current_project_phase}' nicht in Leistungsphasenverzeichnis enthalten")
+            return self.project_phases[0]
+
+    @current_project_phase.setter
+    def current_project_phase(self,value):
+        if value in self.project_phases:
+            self._current_project_phase = value
+        else:
+            logging.error(f"'{self._current_project_phase}' nicht in Leistungsphasenverzeichnis enthalten")
 
     def create_mapping_script(self,pset_name:str,path:str):
         create_mapping_script(self,pset_name,path)
@@ -138,8 +154,8 @@ class Project(object):
 
     @property
     def objects(self) -> Iterator[Object]:
-        objects = list(Object)
-        return filter(lambda obj: obj.project_phases[self.current_project_phase - 1], objects)
+        objects:list[Object] = list(Object)
+        return filter(lambda obj: obj.project_phase_state(self.current_project_phase), objects)
 
     def get_all_aggregations(self) -> Iterator[Aggregation]:
         return iter(Aggregation)
@@ -147,9 +163,9 @@ class Project(object):
     @property
     def aggregations(self) -> Iterator[Aggregation]:
         aggregations = list(Aggregation)
-        return filter(lambda aggreg: aggreg.object.project_phases[self.current_project_phase - 1], aggregations)
+        return filter(lambda aggreg: aggreg.object.project_phase_state(self.current_project_phase), aggregations)
 
-    def tree(self, only_current_project_phase: bool = True) -> AnyNode:
+    def tree(self) -> AnyNode:
         def create_childen(node: AnyNode):
             obj: Object = node.obj
             for child in obj.children:
@@ -161,9 +177,6 @@ class Project(object):
         for obj in self.objects:
             if obj.parent is not None:
                 continue
-            if only_current_project_phase:
-                if not obj.project_phases[self.current_project_phase - 1]:
-                    continue
             root_objects.append(AnyNode(id=obj.name, obj=obj, parent=base))
 
         for n in root_objects:
@@ -178,9 +191,11 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
                  project: Project | None = None,
-                 project_phases: list[bool] | None = None) -> None:
+                 project_phase_dict: dict[str,bool]|None = None) -> None:
         self._project = project
-        self.project_phases = project_phases
+        if project_phase_dict is None:
+            project_phase_dict = dict()
+        self._project_phase_dict = project_phase_dict
         self._parent = None
         self._children = set()
         self._name = name
@@ -197,8 +212,8 @@ class Hirarchy(object, metaclass=IterRegistry):
         if optional is not None:
             self._optional = optional
 
-        if self.project_phases is None:
-            self.project_phases: list[bool] = [True for _ in range(9)]
+    def get_project_phase_dict(self) -> dict[str,bool]:
+        return self._project_phase_dict
 
     def _get_project(self, parent_element: Object | PropertySet) -> Project | None:
         if self._project is not None:
@@ -207,6 +222,15 @@ class Hirarchy(object, metaclass=IterRegistry):
         if parent_element is not None:
             return parent_element.project
         return None
+
+    def project_phase_state(self,project_phase_name:str) -> bool:
+        state = self._project_phase_dict.get(project_phase_name)
+        if state is None:
+            return True
+        return state
+
+    def set_project_phase_state(self,project_phase_name:str,state:bool):
+        self._project_phase_dict[project_phase_name] = state
 
     @property
     def optional_wo_hirarchy(self) -> bool:
@@ -305,7 +329,7 @@ class Object(Hirarchy):
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
                  optional: None | bool = None, abbreviation: None | str = None, project: None | Project = None,
-                 project_phases: None | list[bool] = None) -> None:
+                 project_phases: None | dict[str,bool] = None) -> None:
         super(Object, self).__init__(name, description, optional, project, project_phases)
         self._registry.add(self)
         self._property_sets: list[PropertySet] = list()
@@ -423,7 +447,7 @@ class Object(Hirarchy):
             property_sets = self.get_all_property_sets()
         else:
             property_sets = {pset for pset in self._property_sets if
-                             pset.project_phases[self.project.current_project_phase - 1]}
+                             pset.project_phase_state(self.project.current_project_phase)}
         return sorted(property_sets, key=lambda x: x.name)
 
     # override name setter because of intheritance
@@ -481,7 +505,7 @@ class PropertySet(Hirarchy):
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, project: None | Project = None,
-                 project_phases: None | list[bool] = None) -> None:
+                 project_phases: None | dict[str,bool] = None) -> None:
         super(PropertySet, self).__init__(name, description, optional, project, project_phases)
         self._attributes = set()
         self._object = None
@@ -559,7 +583,7 @@ class PropertySet(Hirarchy):
         attributes = self.get_all_attributes()
         if self.project is not None:
             attributes = {attribute for attribute in attributes if
-                          attribute.project_phases[self.project.current_project_phase - 1]}
+                          attribute.project_phase_state(self.project.current_project_phase)}
         return attributes
 
     @attributes.setter
@@ -621,7 +645,7 @@ class Attribute(Hirarchy):
                  data_type: str = "xs:string",
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
-                 project_phases: None | list[bool] = None):
+                 project_phases: None | dict[str,bool] = None):
 
         super(Attribute, self).__init__(name, description, optional, project, project_phases)
         self._value = value
@@ -802,7 +826,7 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None, project_phases: None | list[bool] = None):
+                 optional: None | bool = None, project_phases: None | dict[str,bool] = None):
         super(Aggregation, self).__init__(obj.name, description, optional, project_phases)
         self._registry.add(self)
         if uuid is None:

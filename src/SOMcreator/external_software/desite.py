@@ -157,7 +157,7 @@ def export_modelcheck(project: classes.Project, path: str, project_tree=None) ->
                 xml_code = handle_code(xml_rule_script)
 
                 property_sets = [pset for pset in obj.property_sets if
-                                 len(pset.attributes) > 0 and pset.project_phases[project_phase_list_index]]
+                                 len(pset.attributes) > 0]
 
                 ident_name = obj.ident_attrib.name
                 ident_property_set = obj.ident_attrib.property_set.name
@@ -167,7 +167,7 @@ def export_modelcheck(project: classes.Project, path: str, project_tree=None) ->
                     ident_property_set = f"{ident_property_set}:"
 
                 cdata_code = template.render(psets=property_sets, object=obj, ident=ident_name,
-                                             ident_pset=ident_property_set, constants=constants,project_phase= project_phase_list_index)
+                                             ident_pset=ident_property_set, constants=constants)
                 xml_code.text = cdata_code
                 handle_rule(xml_checkrun, "UniquePattern")
 
@@ -253,7 +253,6 @@ def export_modelcheck(project: classes.Project, path: str, project_tree=None) ->
 
     if project_tree is None:
         project_tree = project.tree()
-    project_phase_list_index = project.current_project_phase - 1
     export()
 
 
@@ -272,8 +271,6 @@ def export_bs(project: classes.Project, path: str) -> None:
             xml_child.set("takt", "")
 
             for child in sorted(aggregation.children, key=lambda x: x.name):
-                if not child.object.project_phases[project_phase_list_index]:
-                    continue
                 connection_type = child.parent_connection
                 if connection_type == constants.AGGREGATION:
                     handle_section(child, xml_child)
@@ -289,7 +286,7 @@ def export_bs(project: classes.Project, path: str) -> None:
         xml_root.set("takt", "")
 
         root_objects: list[classes.Aggregation] = [aggreg for aggreg in classes.Aggregation if
-                                                   aggreg.is_root and aggreg.object.project_phases[project_phase_list_index]]
+                                                   aggreg.is_root]
 
         root_objects.sort(key=lambda x: x.name)
 
@@ -307,8 +304,6 @@ def export_bs(project: classes.Project, path: str) -> None:
 
             i = 1
             for attribute in classes.Attribute:
-                if not attribute.project_phases[project_phase_list_index]:
-                    continue
                 # use attribute_text instead of attribute to remove duplicates
                 attribute_text = f"{attribute.property_set.name}:{attribute.name}"
                 if attribute_text not in attribute_dict:
@@ -329,11 +324,7 @@ def export_bs(project: classes.Project, path: str) -> None:
             for node, ref_id in id_dict.items():
                 obj = node.object
                 for property_set in obj.property_sets:
-                    if not property_set.project_phases[project_phase_list_index]:
-                        continue
                     for attribute in property_set.attributes:
-                        if not attribute.project_phases[project_phase_list_index]:
-                            continue
                         attribute_text = f"{attribute.property_set.name}:{attribute.name}"
                         ref_type = attribute_dict[attribute_text]
                         xml_property = etree.SubElement(xml_property_section, "property")
@@ -374,7 +365,6 @@ def export_bs(project: classes.Project, path: str) -> None:
         with open(path, "wb") as f:
             tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
 
-    project_phase_list_index = project.current_project_phase - 1
     if path:
         export()
         pass
@@ -388,8 +378,6 @@ def export_bookmarks(proj: classes.Project, path: str) -> None:
 
         obj: classes.Object
         for obj in sorted(proj.objects, key=lambda o: o.ident_value):
-            if not obj.project_phases[project_phase_list_index]:
-                continue
             xml_bookmark = etree.SubElement(xml_bookmark_list, "cBookmark")
             xml_bookmark.set("ID", str(obj.uuid))
 
@@ -406,11 +394,7 @@ def export_bookmarks(proj: classes.Project, path: str) -> None:
             xml_col.set("v", text)
 
             for property_set in obj.property_sets:
-                if not property_set.project_phases[project_phase_list_index]:
-                    continue
                 for attribute in property_set.attributes:
-                    if not attribute.project_phases[project_phase_list_index]:
-                        continue
                     if attribute != obj.ident_attrib:
                         xml_col = etree.SubElement(xml_bookmark, "col")
                         text = f"{property_set.name}:{attribute.name}##{attribute.data_type}"
@@ -426,7 +410,6 @@ def export_bookmarks(proj: classes.Project, path: str) -> None:
 
         return attribute_dict
 
-    project_phase_list_index = proj.current_project_phase - 1
     if not os.path.isdir(path):
         return
 

@@ -10,10 +10,7 @@ def create_mapping(src_path: str, dest_path: str, project: classes.Project) -> N
         new_sheet = workbook.create_sheet(name)
         attributes = set()
         for property_set in obj.property_sets:
-            if not property_set.project_phases[project_phase_list_index]:
-                continue
             for attribute in property_set.attributes:
-                if attribute.project_phases[project_phase_list_index]:
                     attributes.add(attribute.name)
 
         for i, attrib_name in enumerate(sorted(attributes), start=1):
@@ -26,7 +23,7 @@ def create_mapping(src_path: str, dest_path: str, project: classes.Project) -> N
     sheet = wb.active
     important_rows = [row for i, row in enumerate(sheet.rows) if row[2].value is not None and i != 0]
     object_dict = {obj.ident_attrib.value[0]: obj for obj in project.objects if
-                   not obj.is_concept and obj.project_phases[project_phase_list_index]}
+                   not obj.is_concept}
 
     for row in important_rows:
         bauteil_bez_card, bauteil_bez_2, bauteilklass = map(lambda x: x.value, row)

@@ -3,20 +3,18 @@ from __future__ import annotations
 import json
 import logging
 import os.path
-import random
 import re
 import shutil
 import tempfile
-import uuid
 from typing import Iterator
 
 import openpyxl
 from openpyxl import Workbook
-from openpyxl.cell.cell import Cell
-from openpyxl.worksheet.worksheet import Worksheet
-from openpyxl.worksheet.table import Table,TableStyleInfo
 from openpyxl import styles
+from openpyxl.cell.cell import Cell
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.worksheet.worksheet import Worksheet
 
 from .. import classes, constants
 from ..Template import IFC_4_1
@@ -43,12 +41,13 @@ def find_by_abbreviation(abbreviation: str) -> ExcelBlock | None:
     return excel_block_dict.get(abbreviation.upper())
 
 
-def autoadjust_column_widths(sheet:Worksheet) -> None:
+def autoadjust_column_widths(sheet: Worksheet) -> None:
     for i in range(len(list(sheet.columns))):
-        column_letter = get_column_letter(i+1)
+        column_letter = get_column_letter(i + 1)
         column = sheet[column_letter]
         width = max([len(cell.value) for cell in column if cell.value is not None], default=2)
         sheet.column_dimensions[column_letter].width = width
+
 
 class ExcelIterator(type):
     def __iter__(cls: ExcelBlock) -> Iterator[ExcelBlock]:
@@ -166,7 +165,7 @@ class ExcelBlock(metaclass=ExcelIterator):
            Create Them and find special Datatypes
            """
 
-        def transform_value_types(attribute_name:str,value: str) -> (str, bool):
+        def transform_value_types(attribute_name: str, value: str) -> (str, bool):
             if value is not None:
                 if value.lower() in ["string", "str"]:
                     data_type = constants.XS_STRING
@@ -192,8 +191,8 @@ class ExcelBlock(metaclass=ExcelIterator):
 
         while entry.value is not None and entry not in cell_list and entry.value != "-":
             data_type_text = self.sheet.cell(row=entry.row, column=entry.column + 2).value
-            data_type = transform_value_types(entry.value,data_type_text)
-            attribute_name:str = entry.value
+            data_type = transform_value_types(entry.value, data_type_text)
+            attribute_name: str = entry.value
             description = self.sheet.cell(row=entry.row, column=entry.column + 1).value
             optional = False
             if attribute_name.startswith("*"):
@@ -201,8 +200,8 @@ class ExcelBlock(metaclass=ExcelIterator):
                 attribute_name = attribute_name[1:]
 
             attribute = classes.Attribute(self.pset, attribute_name, [], constants.VALUE_TYPE_LOOKUP[constants.LIST],
-                                          data_type=data_type,optional=optional,description=description)
-            attribute.revit_name =attribute_name
+                                          data_type=data_type, optional=optional, description=description)
+            attribute.revit_name = attribute_name
             attributes.add(attribute)
 
             entry = self.sheet.cell(row=entry.row + 1, column=entry.column)
@@ -215,7 +214,7 @@ class ExcelBlock(metaclass=ExcelIterator):
         if self.name.startswith("*"):
             optional = True
             pset_name = pset_name[1:]
-        self.pset = classes.PropertySet(pset_name,optional=optional)
+        self.pset = classes.PropertySet(pset_name, optional=optional)
         self.pset.attributes = self.create_attributes()
 
     def create_object(self) -> classes.Object:
@@ -239,8 +238,8 @@ class ExcelBlock(metaclass=ExcelIterator):
         obj_name = self.name
         if self.name.startswith("*"):
             optional = True
-            obj_name= obj_name[1:]
-        obj = classes.Object(obj_name, ident_attrib,ifc_mapping=self.ifc_mapping(),optional=optional,)
+            obj_name = obj_name[1:]
+        obj = classes.Object(obj_name, ident_attrib, ifc_mapping=self.ifc_mapping(), optional=optional, )
         if attributes:
             obj.add_property_set(self.pset)
         obj.add_property_set(ident_pset)
@@ -300,7 +299,7 @@ def _create_items() -> None:
             new_pset = pset.create_child(pset.name)
             block.object.add_property_set(new_pset)
 
-    #for SOM of Deutsche Bahn
+    # for SOM of Deutsche Bahn
     for obj in classes.Object:
         prop = obj.get_property_set_by_name("Allgemeine Eigenschaften")
         if prop is None:
@@ -308,6 +307,7 @@ def _create_items() -> None:
         bn = prop.get_attribute_by_name("bauteilName")
         if bn is not None:
             bn.value = [obj.name]
+
 
 def _build_object_tree() -> None:
     tree_dict: dict[str, classes.Object] = {obj.ident_attrib.value[0]: obj for obj in classes.Object}
@@ -411,7 +411,6 @@ def create_abbreviation_json(excel_path: str, ws_name: str, export_path: str = N
 
 
 def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {}) -> None:
-
     if not os.path.exists(os.path.dirname(path)):
         raise FileNotFoundError(f"path {os.path.dirname(path)} DNE")
 
@@ -429,12 +428,12 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
             sheet.cell(row, 1).value = obj.name
             sheet.cell(row, 2).value = str(obj.ident_value)
             if obj.optional:
-                sheet.cell(row,1).font = OPTIONAL_FONT
-                sheet.cell(row,2).font = OPTIONAL_FONT
-        table_start = sheet.cell(1,1).coordinate
-        table_end = sheet.cell(row,2).coordinate
+                sheet.cell(row, 1).font = OPTIONAL_FONT
+                sheet.cell(row, 2).font = OPTIONAL_FONT
+        table_start = sheet.cell(1, 1).coordinate
+        table_end = sheet.cell(row, 2).coordinate
         table_range = f"{table_start}:{table_end}"
-        table = Table(displayName="Uebersicht",ref=table_range )
+        table = Table(displayName="Uebersicht", ref=table_range)
         style = TableStyleInfo(name=TABLE_STYLE, showFirstColumn=False,
                                showLastColumn=False, showRowStripes=True, showColumnStripes=False)
         table.tableStyleInfo = style
@@ -442,75 +441,76 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
         autoadjust_column_widths(sheet)
 
     def filter_to_sheets() -> dict:
-        d = {obj.ident_value: {NAME:obj.name,OBJECTS:[]} for obj in project.objects if len(obj.ident_value.split(".")) == 1}
-        for ident,name in mapping_dict.items():
-            d[ident] = {NAME:name,OBJECTS:[]}
+        d = {obj.ident_value: {NAME: obj.name, OBJECTS: []} for obj in project.objects if
+             len(obj.ident_value.split(".")) == 1}
+        for ident, name in mapping_dict.items():
+            d[ident] = {NAME: name, OBJECTS: []}
 
         for obj in project.objects:
             group = obj.ident_value.split(".")[0]
             d[group][OBJECTS].append(obj)
 
-        d["son"]= {NAME:"Sonstige",OBJECTS:[]}
-        for group_name,group in list(d.items()):
+        d["son"] = {NAME: "Sonstige", OBJECTS: []}
+        for group_name, group in list(d.items()):
             objects = group[OBJECTS]
-            if len(objects)<3:
-                d["son"][OBJECTS]+=objects
+            if len(objects) < 3:
+                d["son"][OBJECTS] += objects
                 del d[group_name]
         return d
 
-    def create_object_entry(obj:classes.Object, sheet, start_row, start_column,table_index):
+    def create_object_entry(obj: classes.Object, sheet, start_row, start_column, table_index):
         if obj.optional:
             font_style = OPTIONAL_FONT
         else:
             font_style = styles.Font()
 
-        sheet.cell(start_row,start_column).value = "bauteilName"
-        sheet.cell(start_row,start_column+1).value = obj.name
+        sheet.cell(start_row, start_column).value = "bauteilName"
+        sheet.cell(start_row, start_column + 1).value = obj.name
 
-        sheet.cell(start_row+1, start_column).value = "bauteilKlassifikation"
-        sheet.cell(start_row+1,start_column+1).value = obj.ident_value
+        sheet.cell(start_row + 1, start_column).value = "bauteilKlassifikation"
+        sheet.cell(start_row + 1, start_column + 1).value = obj.ident_value
 
         sheet.cell(start_row + 2, start_column).value = "Kürzel"
-        sheet.cell(start_row+2,start_column+1).value = str(obj.abbreviation)
+        sheet.cell(start_row + 2, start_column + 1).value = str(obj.abbreviation)
 
-        sheet.cell(start_row+3,start_column).value = "Property"
-        sheet.cell(start_row+3,start_column+1).value = "Propertyset"
-        sheet.cell(start_row+3,start_column+2).value = "Beispiele / Beschreibung"
+        sheet.cell(start_row + 3, start_column).value = "Property"
+        sheet.cell(start_row + 3, start_column + 1).value = "Propertyset"
+        sheet.cell(start_row + 3, start_column + 2).value = "Beispiele / Beschreibung"
         sheet.cell(start_row + 3, start_column + 3).value = "Datentyp"
 
-        for i in range(0,4):
-            for k in range(0,4):
-                sheet.cell(start_row+i,start_column+k).font = font_style
-        draw_border(sheet, [start_row, start_row+2], [start_column, start_column+4])
-        fill_grey(sheet, [start_row, start_row+2], [start_column, start_column+3])
+        for i in range(0, 4):
+            for k in range(0, 4):
+                sheet.cell(start_row + i, start_column + k).font = font_style
+        draw_border(sheet, [start_row, start_row + 2], [start_column, start_column + 4])
+        fill_grey(sheet, [start_row, start_row + 2], [start_column, start_column + 3])
 
-        pset_start_row = start_row+4
+        pset_start_row = start_row + 4
         index = 0
         for property_set in sorted(obj.property_sets):
             for attribute in sorted(property_set.attributes):
-                sheet.cell(pset_start_row+index,start_column).value = attribute.name
-                sheet.cell(pset_start_row+index,start_column+1).value = property_set.name
-                sheet.cell(pset_start_row+index,start_column+2).value = attribute.description
-                sheet.cell(pset_start_row+index,start_column+3).value = attribute.data_type
+                sheet.cell(pset_start_row + index, start_column).value = attribute.name
+                sheet.cell(pset_start_row + index, start_column + 1).value = property_set.name
+                sheet.cell(pset_start_row + index, start_column + 2).value = attribute.description
+                sheet.cell(pset_start_row + index, start_column + 3).value = attribute.data_type
                 if attribute.optional:
                     sheet.cell(pset_start_row + index, start_column).font = OPTIONAL_FONT
-                    sheet.cell(pset_start_row + index, start_column+1).font = OPTIONAL_FONT
-                    sheet.cell(pset_start_row + index, start_column+2).font = OPTIONAL_FONT
-                index+=1
+                    sheet.cell(pset_start_row + index, start_column + 1).font = OPTIONAL_FONT
+                    sheet.cell(pset_start_row + index, start_column + 2).font = OPTIONAL_FONT
+                index += 1
 
-        table_start = sheet.cell(pset_start_row-1,start_column).coordinate
-        table_end = sheet.cell(pset_start_row+index-1,start_column+3).coordinate
+        table_start = sheet.cell(pset_start_row - 1, start_column).coordinate
+        table_end = sheet.cell(pset_start_row + index - 1, start_column + 3).coordinate
         table_range = f"{table_start}:{table_end}"
-        table = Table(displayName=f"Tabelle_{str(table_index).zfill(5)}",ref=table_range )
+        table = Table(displayName=f"Tabelle_{str(table_index).zfill(5)}", ref=table_range)
         style = TableStyleInfo(name=TABLE_STYLE, showFirstColumn=False,
                                showLastColumn=False, showRowStripes=True, showColumnStripes=False)
         table.tableStyleInfo = style
         sheet.add_table(table)
 
-    def draw_border(sheet:Worksheet,row_range:[int,int],column_range:[int,int]):
-        for row in range(row_range[0],row_range[1]+1):
-            for column in range(column_range[0],column_range[1]+1):
-                left_side = styles.Side(border_style="none",color = "FF000000")
+    def draw_border(sheet: Worksheet, row_range: [int, int], column_range: [int, int]):
+        for row in range(row_range[0], row_range[1] + 1):
+            for column in range(column_range[0], column_range[1] + 1):
+                left_side = styles.Side(border_style="none", color="FF000000")
                 right_side = styles.Side(border_style="none", color="FF000000")
                 top_side = styles.Side(border_style="none", color="FF000000")
                 bottom_side = styles.Side(border_style="none", color="FF000000")
@@ -524,9 +524,10 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
                     top_side = styles.Side(border_style="thick", color="FF000000")
                 if row == row_range[1]:
                     bottom_side = styles.Side(border_style="thick", color="FF000000")
-                sheet.cell(row,column).border = styles.Border(left = left_side,right = right_side,top = top_side,bottom = bottom_side)
+                sheet.cell(row, column).border = styles.Border(left=left_side, right=right_side, top=top_side,
+                                                               bottom=bottom_side)
 
-    def fill_grey(sheet:Worksheet,row_range:[int,int],column_range:[int,int]):
+    def fill_grey(sheet: Worksheet, row_range: [int, int], column_range: [int, int]):
         fill = styles.PatternFill(fill_type="solid", start_color="d9d9d9")
         for row in range(row_range[0], row_range[1] + 1):
             for column in range(column_range[0], column_range[1] + 1):
@@ -539,13 +540,13 @@ def export(project: classes.Project, path: str, mapping_dict: dict[str, str] = {
 
     sheet_dict = filter_to_sheets()
     table_counter = 1
-    for ident,d in sheet_dict.items():
+    for ident, d in sheet_dict.items():
         obj_name = d[NAME]
         objects = d[OBJECTS]
         work_sheet = workbook.create_sheet(f"{obj_name} ({ident})")
-        for counter,obj in enumerate(sorted(objects)):
-            column = 1+counter*5
-            create_object_entry(obj,work_sheet,1,column,table_counter)
-            table_counter+=1
+        for counter, obj in enumerate(sorted(objects)):
+            column = 1 + counter * 5
+            create_object_entry(obj, work_sheet, 1, column, table_counter)
+            table_counter += 1
         autoadjust_column_widths(work_sheet)
     workbook.save(path)

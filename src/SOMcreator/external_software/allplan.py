@@ -35,8 +35,6 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
         attribute_dict: dict[str, classes.Attribute] = dict()
 
         for attribute in classes.Attribute:
-            if not attribute.project_phases[project_phase_list_index]:
-                continue
             name = attribute.name
             new_data_type = attribute.data_type
             old_data_type = new_data_type
@@ -62,7 +60,7 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
             return sum(len([attrib for attrib in pset.attributes]) for pset in obj.property_sets)
 
         max_attribs = max(
-            get_attrib_count(obj) for obj in project.objects if obj.project_phases[project_phase_list_index])
+            get_attrib_count(obj) for obj in project.objects)
         header = ["Kenner"] + ["Wert", "Name"] * max_attribs
         for i, text in enumerate(header):
             worksheet.cell(1, i + 1, text)
@@ -70,16 +68,10 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
 
         row_index = 2
         for obj in project.objects:
-            if obj.is_concept or not obj.project_phases[project_phase_list_index]:
-                continue
             worksheet.cell(row_index, 2, obj.ident_value)
             col_index = 3
             for propery_set in obj.property_sets:
-                if not propery_set.project_phases[project_phase_list_index]:
-                    continue
                 for attribute in propery_set.attributes:
-                    if not attribute.project_phases.index(project_phase_list_index):
-                        continue
                     if attribute.name != kenner:
                         worksheet.cell(row_index, col_index, attribute.name)
                         col_index += 2
@@ -105,7 +97,6 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
             worksheet.cell(2 + index, 4, allplan_mapping_name)
             worksheet.cell(2 + index, 5, transform_type(attribute.data_type))
 
-    project_phase_list_index = project.current_project_phase - 1
 
     wb = Workbook()
     ws = wb.active
