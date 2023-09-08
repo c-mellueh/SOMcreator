@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import os
 from typing import Iterator
 from uuid import uuid4
 
@@ -11,7 +12,6 @@ from . import constants, filehandling
 from .external_software import excel
 # Add child to Parent leads to reverse
 from .filehandling import create_mapping_script
-
 
 
 def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
@@ -54,7 +54,7 @@ class Project(object):
         self._current_project_phase = "Standart"
         self._project_phases = ["Standart"]
 
-    def get_all_hirarchy_items(self) -> set[Object,PropertySet,Attribute,Aggregation]:
+    def get_all_hirarchy_items(self) -> set[Object, PropertySet, Attribute, Aggregation]:
         hirarchy_set = set()
         for obj in self.objects:
             hirarchy_set.add(obj)
@@ -69,14 +69,18 @@ class Project(object):
     def get_project_phase_list(self) -> list[str]:
         return list(self._project_phases)
 
-    def add_project_phase(self,project_phase_name):
+    def add_project_phase(self, project_phase_name: str, state: bool = True) -> None:
         if project_phase_name not in self._project_phases:
             self._project_phases.append(project_phase_name)
+            for item in self.get_all_hirarchy_items():
+                item.add_project_phase(project_phase_name, state)
 
-    def rename_project_phase(self,old_name:str,new_name:str) -> None:
+    def rename_project_phase(self, old_name: str, new_name: str) -> None:
         if old_name not in self._project_phases:
             logging.warning(f"Projektphase {old_name} nicht vorhanden")
             return
+        if old_name == self.current_project_phase:
+            self._current_project_phase = new_name
 
         index = self._project_phases.index(old_name)
         self._project_phases[index] = new_name
@@ -89,7 +93,7 @@ class Project(object):
             item.add_project_phase(project_phase_name=new_name, state=value)
             item.remove_project_phase(old_name)
 
-    def remove_project_phase(self,project_phase_name:str) -> None:
+    def remove_project_phase(self, project_phase_name: str) -> None:
         if project_phase_name not in self._project_phases:
             return
         self._project_phases.remove(project_phase_name)
@@ -97,28 +101,28 @@ class Project(object):
         for item in self.get_all_hirarchy_items():
             item.remove_project_phase(project_phase_name)
 
-
-
     @property
-    def current_project_phase(self):
+    def current_project_phase(self) -> str:
         if self._current_project_phase in self._project_phases:
             return self._current_project_phase
+        else:
+            print(f"{self._current_project_phase} not in {self._project_phases}")
 
     @current_project_phase.setter
-    def current_project_phase(self,value):
+    def current_project_phase(self, value:str) -> None:
         if value in self._project_phases:
             self._current_project_phase = value
         else:
             logging.error(f"'{value}' nicht in Leistungsphasen-verzeichnis enthalten")
 
-    def create_mapping_script(self,pset_name:str,path:str):
-        create_mapping_script(self,pset_name,path)
+    def create_mapping_script(self, pset_name: str, path: str) -> None:
+        create_mapping_script(self, pset_name, path)
 
-    def open(self, path) -> dict:
+    def open(self, path:str|os.PathLike) -> dict:
         json_dict = filehandling.import_json(self, path)
         return json_dict
 
-    def save(self, path) -> dict:
+    def save(self, path:str|os.PathLike) -> dict:
         json_dict = filehandling.export_json(self, path)
         return json_dict
 
@@ -196,7 +200,7 @@ class Project(object):
 
     @property
     def objects(self) -> Iterator[Object]:
-        objects:list[Object] = list(Object)
+        objects: list[Object] = list(Object)
         return filter(lambda obj: obj.get_project_phase_state(self.current_project_phase), objects)
 
     def get_all_aggregations(self) -> Iterator[Aggregation]:
@@ -233,11 +237,11 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
                  project: Project | None = None,
-                 project_phase_dict: dict[str,bool]|None = None) -> None:
+                 project_phase_dict: dict[str, bool] | None = None) -> None:
         self._project = project
         if project_phase_dict is None:
             project_phase_dict = dict()
-        self._project_phase_dict:dict[str,bool] = project_phase_dict
+        self._project_phase_dict: dict[str, bool] = project_phase_dict
         self._parent = None
         self._children = set()
         self._name = name
@@ -262,27 +266,27 @@ class Hirarchy(object, metaclass=IterRegistry):
             return parent_element.project
         return None
 
-    def get_project_phase_dict(self) -> dict[str,bool]:
+    def get_project_phase_dict(self) -> dict[str, bool]:
         return dict(self._project_phase_dict)
 
-    def get_project_phase_state(self, project_phase_name:str) -> bool:
+    def get_project_phase_state(self, project_phase_name: str) -> bool:
         state = self._project_phase_dict.get(project_phase_name)
         if state is None:
             return True
         return state
 
-    def remove_project_phase(self, project_phase_name:str)-> None:
+    def remove_project_phase(self, project_phase_name: str) -> None:
         if project_phase_name in self._project_phase_dict:
             self._project_phase_dict.pop(project_phase_name)
 
-    def add_project_phase(self,project_phase_name:str,state:bool)-> None:
+    def add_project_phase(self, project_phase_name: str, state: bool) -> None:
         self._project_phase_dict[project_phase_name] = state
 
-    def set_project_phase(self, project_phase_name:str, state:bool) -> None:
+    def set_project_phase(self, project_phase_name: str, state: bool) -> None:
         if project_phase_name in self._project_phase_dict:
             self._project_phase_dict[project_phase_name] = state
         else:
-            self.add_project_phase(project_phase_name,state)
+            self.add_project_phase(project_phase_name, state)
 
     @property
     def optional_wo_hirarchy(self) -> bool:
@@ -381,7 +385,7 @@ class Object(Hirarchy):
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
                  optional: None | bool = None, abbreviation: None | str = None, project: None | Project = None,
-                 project_phases: None | dict[str,bool] = None) -> None:
+                 project_phases: None | dict[str, bool] = None) -> None:
         super(Object, self).__init__(name, description, optional, project, project_phases)
         self._registry.add(self)
         self._property_sets: list[PropertySet] = list()
@@ -557,7 +561,7 @@ class PropertySet(Hirarchy):
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, project: None | Project = None,
-                 project_phases: None | dict[str,bool] = None) -> None:
+                 project_phases: None | dict[str, bool] = None) -> None:
         super(PropertySet, self).__init__(name, description, optional, project, project_phases)
         self._attributes = set()
         self._object = None
@@ -697,7 +701,7 @@ class Attribute(Hirarchy):
                  data_type: str = "xs:string",
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
-                 project_phases: None | dict[str,bool] = None):
+                 project_phases: None | dict[str, bool] = None):
 
         super(Attribute, self).__init__(name, description, optional, project, project_phases)
         self._value = value
@@ -878,7 +882,7 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None, project_phases: None | dict[str,bool] = None):
+                 optional: None | bool = None, project_phases: None | dict[str, bool] = None):
         super(Aggregation, self).__init__(obj.name, description, optional, project_phases)
         self._registry.add(self)
         if uuid is None:
