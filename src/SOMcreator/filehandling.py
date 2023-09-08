@@ -53,17 +53,14 @@ def export_json(project: classes.Project, path: str) -> dict:
         project_dict[constants.AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
         project_dict[constants.AGGREGATION_PSET] = project.aggregation_pset
         project_dict[constants.CURRENT_PR0JECT_PHASE] = project.current_project_phase
-        project_dict[constants.PROJECT_PHASES] = project._project_phases
+        project_dict[constants.PROJECT_PHASES] = project.get_project_phase_list()
 
     def fill_basics(entity_dict, entity):
         """function gets called from all Entities"""
         entity_dict[constants.NAME] = entity.name
         entity_dict[constants.OPTIONAL] = entity.optional
         entity_dict[constants.PROJECT_PHASES] = entity.get_project_phase_dict()
-        if entity.parent is not None:
-            parent = entity.parent.uuid
-        else:
-            parent = None
+        parent = None if entity.parent is None else entity.parent.uuid
         entity_dict[constants.PARENT] = parent
         entity_dict[constants.DESCRIPTION] = entity.description
 
@@ -170,11 +167,12 @@ def import_json(project: classes.Project, path: str):
         if attribute is not None:
             project.aggregation_attribute = attribute
         if project_phases is not None:
-            for project_phase in project_phases:
-                project.add_project_phase(project_phase)
+            project._project_phases = project_phases
 
         if current_project_phase is not None:
             project.current_project_phase = current_project_phase
+        elif project.get_project_phase_list():
+            project.current_project_phase = project.get_project_phase_list()[0]
 
     def load_basics(element_dict: dict) -> (str, str, str):
         name = element_dict[constants.NAME]
@@ -253,6 +251,14 @@ def import_json(project: classes.Project, path: str):
             if parent is not None:
                 parent.add_child(aggregation, connection_type)
 
+    def fill_missing_project_phases():
+        phases = project.get_project_phase_list()
+        for item in project.get_all_hirarchy_items():
+            phase_dict = item.get_project_phase_dict()
+            for phase in phases:
+                if phase not in phase_dict:
+                    item.add_project_phase(phase,True)
+
     project_dict = main_dict.get(constants.PROJECT)
     if project_dict is None:
         logging.warning(f"{constants.PROJECT}-dict doesn't exist unable to load Author, Name and Version")
@@ -274,4 +280,5 @@ def import_json(project: classes.Project, path: str):
 
     load_parents()
     build_aggregation_structure()
+    fill_missing_project_phases()
     return main_dict
