@@ -53,7 +53,7 @@ def export_json(project: classes.Project, path: str) -> dict:
         project_dict[constants.AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
         project_dict[constants.AGGREGATION_PSET] = project.aggregation_pset
         project_dict[constants.CURRENT_PR0JECT_PHASE] = project.current_project_phase
-        project_dict[constants.PROJECT_PHASES] = project.project_phases
+        project_dict[constants.PROJECT_PHASES] = project._project_phases
 
     def fill_basics(entity_dict, entity):
         """function gets called from all Entities"""
@@ -170,7 +170,8 @@ def import_json(project: classes.Project, path: str):
         if attribute is not None:
             project.aggregation_attribute = attribute
         if project_phases is not None:
-            project.project_phases = project_phases
+            for project_phase in project_phases:
+                project.add_project_phase(project_phase)
 
         if current_project_phase is not None:
             project.current_project_phase = current_project_phase
