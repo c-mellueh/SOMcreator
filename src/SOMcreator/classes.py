@@ -53,6 +53,7 @@ class Project(object):
         self.aggregation_pset = ""
         self._current_project_phase = "Standart"
         self._project_phases = ["Standart"]
+        self.change_log  = list()
 
     def get_all_hirarchy_items(self) -> set[Object, PropertySet, Attribute, Aggregation]:
         hirarchy_set = set()
@@ -868,7 +869,7 @@ class Attribute(Hirarchy):
         new_attrib: Attribute = Attribute(property_set=None, name=self.name, value=self.value,
                                           value_type=self.value_type, data_type=self.data_type,
                                           child_inherits_values=self.child_inherits_values, project=self.project,
-                                          project_phases=self.project_phases)
+                                          project_phases=self._project_phase_dict)
         if self.parent is not None:
             self.parent.add_child(new_attrib)
         return new_attrib
