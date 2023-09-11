@@ -78,7 +78,7 @@ def export_json(project: classes.Project, path: str) -> dict:
         pset_dict = dict()
         fill_basics(pset_dict, pset)
         attributes_dict = dict()
-        for attribute in pset.attributes:
+        for attribute in pset.get_all_attributes():
             create_attribute_entry(attributes_dict, attribute)
         pset_dict[constants.ATTRIBUTES] = attributes_dict
         psets_dict[pset.uuid] = pset_dict
@@ -94,7 +94,7 @@ def export_json(project: classes.Project, path: str) -> dict:
             object_dict[constants.IFC_MAPPINGS] = object.ifc_mapping
 
         psets_dict = dict()
-        for pset in object.property_sets:
+        for pset in object.get_all_property_sets():
             create_pset_entry(psets_dict, pset)
 
         object_dict[constants.PROPERTY_SETS] = psets_dict
@@ -128,13 +128,13 @@ def export_json(project: classes.Project, path: str) -> dict:
     main_dict[constants.PREDEFINED_PSETS] = predef_pset_dict
 
     objects_dict = dict()
-    for obj in classes.Object:
+    for obj in project.get_all_objects():
         create_object_entry(objects_dict, obj)
 
     main_dict[constants.OBJECTS] = objects_dict
 
     aggregations_dict = dict()
-    for aggregation in project.aggregations:
+    for aggregation in project.get_all_aggregations():
         create_aggregation_entry(aggregations_dict, aggregation)
     main_dict[constants.AGGREGATIONS] = aggregations_dict
     with open(path, "w") as file:
