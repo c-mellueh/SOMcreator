@@ -150,6 +150,8 @@ def export_modelcheck(project: classes.Project, path: str, project_tree=None) ->
 
             def create_object(xml_container, node: AnyNode):
                 obj: classes.Object = node.obj
+                if obj.ident_attrib is None:
+                    return
                 xml_checkrun = handle_checkrun(xml_container, obj.name, project.author)
                 xml_rule = handle_rule(xml_checkrun, "Attributes")
                 xml_attribute_rule_list = handle_attribute_rule_list(xml_rule)
