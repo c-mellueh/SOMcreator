@@ -166,7 +166,7 @@ def import_json(project: classes.Project, path: str):
             project.aggregation_pset = pset
         if attribute is not None:
             project.aggregation_attribute = attribute
-        if project_phases is not None:
+        if project_phases is not None and isinstance(project_phases,list):
             project._project_phases = project_phases
 
         if current_project_phase is not None:
@@ -180,6 +180,8 @@ def import_json(project: classes.Project, path: str):
         optional = element_dict[constants.OPTIONAL]
         parent = element_dict[constants.PARENT]
         project_phases = element_dict.get(constants.PROJECT_PHASES)
+        if not isinstance(project_phases,dict):
+            project_phases = None
         return name, description, optional, parent, project_phases
 
     def load_object(object_dict, identifier):
