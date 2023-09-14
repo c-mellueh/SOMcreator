@@ -11,12 +11,11 @@ def create_mapping(src_path: str, dest_path: str, project: classes.Project) -> N
         attributes = set()
         for property_set in obj.property_sets:
             for attribute in property_set.attributes:
-                    attributes.add(attribute.name)
+                attributes.add(attribute.name)
 
         for i, attrib_name in enumerate(sorted(attributes), start=1):
             new_sheet.cell(1, i).value = attrib_name
 
-    project_phase_list_index = project.current_project_phase - 1
     export_wb = Workbook()
     export_wb.active.title = "Hilfe"
     wb = load_workbook(src_path)
