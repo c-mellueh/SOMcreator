@@ -6,8 +6,8 @@ from openpyxl import load_workbook
 from .. import classes
 
 
-def create_mapping(excel_path: str, folder_path: str, project:classes.Project) -> None:
-    def create_xml(name: str, object: classes.Object):
+def create_mapping(excel_path: str, folder_path: str, project: classes.Project) -> None:
+    def create_xml(name: str, obj: classes.Object):
         xsd = "http://www.w3.org/2001/XMLSchema"
         xsi = "http://www.w3.org/2001/XMLSchema-instance"
 
@@ -24,21 +24,21 @@ def create_mapping(excel_path: str, folder_path: str, project:classes.Project) -
 
         def create_manipulations() -> None:
             xml_manipulations = etree.SubElement(xml_manipulation_rule, "Manipulations")
-            for property_set in object.property_sets:
+            for property_set in obj.property_sets:
                 for attribut in property_set.attributes:
                     xml_manipulation_base = etree.SubElement(xml_manipulations, "ManipulationBase")
                     xml_manipulation_base.set(f"{{{xsi}}}type", "AddManipulation")
                     xml_key = etree.SubElement(xml_manipulation_base, "Key", )
                     xml_key.text = attribut.name
                     xml_value = etree.SubElement(xml_manipulation_base, "Value", )
-                    if attribut == object.ident_attrib:
+                    if attribut == obj.ident_attrib:
                         xml_value.text = attribut.value[0]
                     else:
                         xml_value.text = ""
                     xml_value.set(f"{{{xsi}}}type", attribut.data_type.replace("xs:", "xsd:"))
 
-        E = builder.ElementMaker(nsmap={"xsd": xsd, "xsi": xsi})
-        xml_role = E.Role()
+        element_maker = builder.ElementMaker(nsmap={"xsd": xsd, "xsi": xsi})
+        xml_role = element_maker.Role()
         xml_name = etree.SubElement(xml_role, "Name")
         xml_name.text = name
         xml_rules = etree.SubElement(xml_role, "Rules")
@@ -62,7 +62,7 @@ def create_mapping(excel_path: str, folder_path: str, project:classes.Project) -
 
     for row in important_rows:
         values = list(map(lambda x: x.value, row))
-        if len(values)!= 4:
+        if len(values) != 4:
             raise ValueError("Spaltenkonfiguration nicht korrekt!")
-        hz_nummer, hz_name, bauteilName,bauteilklass =values
+        hz_nummer, hz_name, bauteil_name, bauteilklass = values
         create_xml(hz_name, object_dict[bauteilklass])

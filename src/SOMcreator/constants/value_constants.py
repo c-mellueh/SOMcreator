@@ -1,0 +1,17 @@
+VALUE = "Value"
+FORMAT = "Format"
+RANGE = "Range"
+LIST = "List"
+XS_STRING = "xs:string"
+XS_DOUBLE = "xs:double"
+XS_BOOL = "xs:boolean"
+XS_LONG = "xs:long"
+DATATYPE_NUMBER = "xs:double"
+XS_INT = "xs:int"
+RANGE_STRINGS = ["Range", "range", "RANGE"]
+VALUE_TYPE_LOOKUP = {VALUE: "Value", FORMAT: "Format", RANGE: "Range", LIST: "List",}
+AGGREGATION = 1
+INHERITANCE = 2
+SHARED_PARAMETERS = "SharedParameters"
+EXISTS = "Exists"
+DATA_TYPES = [XS_STRING,XS_LONG,XS_INT,XS_DOUBLE,XS_BOOL]

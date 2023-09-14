@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, IO, Iterator
 
-from .. import classes, constants
+from .. import classes
+from ..constants import value_constants
 
 if TYPE_CHECKING:
     pass
@@ -10,13 +11,13 @@ if TYPE_CHECKING:
 
 def export_ifc_template(path: str, pset_dict: dict[str, (list[classes.Attribute], set[str])]) -> None:
     def transform_datatype(data_type: str) -> str:
-        if data_type == constants.XS_INT:
+        if data_type == value_constants.XS_INT:
             return "Integer"
-        if data_type == constants.XS_STRING:
+        if data_type == value_constants.XS_STRING:
             return "Label"
-        if data_type == constants.XS_DOUBLE:
+        if data_type == value_constants.XS_DOUBLE:
             return "Real"
-        if data_type == constants.XS_BOOL:
+        if data_type == value_constants.XS_BOOL:
             return "Boolean"
         return "ERROR"
 
@@ -61,13 +62,13 @@ class SP_Item(metaclass=IterItem):
 
     def datatype(self) -> str:
         data_type = self.attribute.data_type
-        if data_type == constants.XS_INT:
+        if data_type == value_constants.XS_INT:
             return "INTEGER"
-        if data_type == constants.XS_STRING:
+        if data_type == value_constants.XS_STRING:
             return "TEXT"
-        if data_type == constants.XS_DOUBLE:
+        if data_type == value_constants.XS_DOUBLE:
             return "NUMBER"
-        if data_type == constants.XS_BOOL:
+        if data_type == value_constants.XS_BOOL:
             return "YESNO"
         return "ERROR"
 

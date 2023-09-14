@@ -8,10 +8,11 @@ from uuid import uuid4
 
 from anytree import AnyNode
 
-from . import constants, filehandling
-from .external_software import excel
-# Add child to Parent leads to reverse
+from . import filehandling
+from .constants import value_constants, json_constants
 from .filehandling import create_mapping_script
+
+# Add child to Parent leads to reverse
 
 
 def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
@@ -53,7 +54,7 @@ class Project(object):
         self.aggregation_pset = ""
         self._current_project_phase = "Standart"
         self._project_phases = ["Standart"]
-        self.change_log  = list()
+        self.change_log = list()
 
     def get_all_hirarchy_items(self) -> set[Object, PropertySet, Attribute, Aggregation]:
         hirarchy_set = set()
@@ -110,7 +111,7 @@ class Project(object):
             print(f"{self._current_project_phase} not in {self._project_phases}")
 
     @current_project_phase.setter
-    def current_project_phase(self, value:str) -> None:
+    def current_project_phase(self, value: str) -> None:
         if value in self._project_phases:
             self._current_project_phase = value
         else:
@@ -119,11 +120,11 @@ class Project(object):
     def create_mapping_script(self, pset_name: str, path: str) -> None:
         create_mapping_script(self, pset_name, path)
 
-    def open(self, path:str|os.PathLike) -> dict:
+    def open(self, path: str | os.PathLike) -> dict:
         json_dict = filehandling.import_json(self, path)
         return json_dict
 
-    def save(self, path:str|os.PathLike) -> dict:
+    def save(self, path: str | os.PathLike) -> dict:
         json_dict = filehandling.export_json(self, path)
         return json_dict
 
@@ -193,10 +194,8 @@ class Project(object):
         self.changed = True
         self.name = ""
 
-    def import_excel(self, path: str, ws_name: str) -> None:
-        excel.open_file(path, ws_name)
-
-    def get_all_objects(self) -> Iterator[Object]:
+    @staticmethod
+    def get_all_objects() -> Iterator[Object]:
         return iter(Object)
 
     @property
@@ -204,7 +203,8 @@ class Project(object):
         objects: list[Object] = list(Object)
         return filter(lambda obj: obj.get_project_phase_state(self.current_project_phase), objects)
 
-    def get_all_aggregations(self) -> Iterator[Aggregation]:
+    @staticmethod
+    def get_all_aggregations() -> Iterator[Aggregation]:
         return iter(Aggregation)
 
     @property
@@ -214,8 +214,8 @@ class Project(object):
 
     def tree(self) -> AnyNode:
         def create_childen(node: AnyNode):
-            obj: Object = node.obj
-            for child in obj.children:
+            n_obj: Object = node.obj
+            for child in n_obj.children:
                 child_node = AnyNode(id=child.name, obj=child, parent=node)
                 create_childen(child_node)
 
@@ -230,8 +230,9 @@ class Project(object):
             create_childen(n)
         return base
 
-    def get_predefined_psets(self) -> set[PropertySet]:
-        return set(pset for pset in PropertySet if pset.object == None)
+    @staticmethod
+    def get_predefined_psets() -> set[PropertySet]:
+        return set(pset for pset in PropertySet if pset.object is None)
 
 
 class Hirarchy(object, metaclass=IterRegistry):
@@ -248,8 +249,8 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._name = name
         self.changed = True
         self._mapping_dict = {
-            constants.SHARED_PARAMETERS: True,
-            constants.IFC_MAPPING: True
+            value_constants.SHARED_PARAMETERS: True,
+            json_constants.IFC_MAPPING: True
         }
         self._description = ""
         if description is not None:
@@ -881,7 +882,7 @@ class Aggregation(Hirarchy):
     def __str__(self):
         return self.name
 
-    def __init__(self, obj: Object, parent_connection=constants.AGGREGATION, uuid: str | None = None,
+    def __init__(self, obj: Object, parent_connection=value_constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
                  optional: None | bool = None, project_phases: None | dict[str, bool] = None):
         super(Aggregation, self).__init__(obj.name, description, optional, project_phases)
@@ -932,7 +933,7 @@ class Aggregation(Hirarchy):
         self.parent.children.remove(self)
         self._parent = None
 
-    def add_child(self, child: Aggregation, connection_type: int = constants.AGGREGATION) -> bool:
+    def add_child(self, child: Aggregation, connection_type: int = value_constants.AGGREGATION) -> bool:
         """returns if adding child is allowed"""
 
         def loop_parents(element, search_value):
@@ -966,7 +967,8 @@ class Aggregation(Hirarchy):
         abbrev_list = list()
 
         def iter_id(element: Aggregation):
-            if element.parent_connection in (constants.AGGREGATION, constants.AGGREGATION + constants.INHERITANCE):
+            if element.parent_connection in (value_constants.AGGREGATION,
+                                             value_constants.AGGREGATION + value_constants.INHERITANCE):
                 abbrev_list.append(element.parent.object.abbreviation)
             if not element.is_root:
                 iter_id(element.parent)

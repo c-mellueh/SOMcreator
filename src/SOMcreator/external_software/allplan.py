@@ -2,6 +2,7 @@ from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from .. import classes, constants
+from ..constants import value_constants
 
 TITLES = ["Definition", "Zuweisung", "Mapping"]
 COLUMNS = ["AttributeName",
@@ -16,13 +17,15 @@ COLUMNS = ["AttributeName",
            "AttVorgabe_III",
            "AttVorgabe_IV"]
 
+INTERNAL_COLUMNS = ["Objekt", "AttributAllplan", "AttributIfc", "Pset", "Type"]
+
 
 def create_mapping(project: classes.Project, path: str, allplan_mapping_name: str):
 
     def transform_datatype(data_type: str) -> str:
-        if data_type == constants.XS_INT:
+        if data_type == value_constants.XS_INT:
             return "Ganzzahl"
-        if data_type == constants.XS_DOUBLE:
+        if data_type == value_constants.XS_DOUBLE:
             return "Fließkommazahl"
 
         return "Text"
@@ -50,7 +53,7 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
             row = 2 + y
             worksheet.cell(row=row, column=1, value=attribute.name)
             worksheet.cell(row=row, column=2, value=transform_datatype(attribute.data_type))
-            if attribute.data_type == constants.XS_BOOL:
+            if attribute.data_type == value_constants.XS_BOOL:
                 worksheet.cell(row=row, column=7, value="CheckBox")
         return attribute_dict
 
@@ -80,16 +83,15 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
 
     def create_internal_mapping(attribute_dict: dict[str, classes.Attribute], worksheet: Worksheet):
         def transform_type(t: str) -> str:
-            if t == constants.XS_INT:
+            if t == value_constants.XS_INT:
                 return "IfcInteger"
-            if t == constants.XS_DOUBLE:
+            if t == value_constants.XS_DOUBLE:
                 return "IfcReal"
-            if t == constants.XS_BOOL:
+            if t == value_constants.XS_BOOL:
                 return "IfcBoolean"
             return "IfcLabel"
 
-        COLUMNS = ["Objekt", "AttributAllplan", "AttributIfc", "Pset", "Type"]
-        for x, text in enumerate(COLUMNS):
+        for x, text in enumerate(INTERNAL_COLUMNS):
             worksheet.cell(row=1, column=x + 1, value=text)
         worksheet.cell(2, 1, "All")
         for index, (name, attribute) in enumerate(sorted(attribute_dict.items())):
@@ -97,12 +99,11 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
             worksheet.cell(2 + index, 4, allplan_mapping_name)
             worksheet.cell(2 + index, 5, transform_type(attribute.data_type))
 
-
     wb = Workbook()
     ws = wb.active
     ws.title = TITLES[0]
 
     ad = create_definition(ws)
-    create_zuweisung("bauteilKlassifikation", wb.create_sheet(TITLES[1]))
+    create_zuweisung("bauteilKlassifikation", wb.create_sheet(TITLES[1]))  # Todo: Make bk variable
     create_internal_mapping(ad, wb.create_sheet(TITLES[2]))
     wb.save(path)

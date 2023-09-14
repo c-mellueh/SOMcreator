@@ -16,8 +16,9 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.worksheet.worksheet import Worksheet
 
-from .. import classes, constants
+from .. import classes
 from ..Template import IFC_4_1
+from ..constants import value_constants
 
 IDENT_PSET_NAME = "Allgemeine Eigenschaften"
 IDENT_ATTRIB_NAME = "bauteilKlassifikation"
@@ -168,19 +169,19 @@ class ExcelBlock(metaclass=ExcelIterator):
         def transform_value_types(attribute_name: str, value: str) -> (str, bool):
             if value is not None:
                 if value.lower() in ["string", "str"]:
-                    data_type = constants.XS_STRING
+                    data_type = value_constants.XS_STRING
                 elif value.lower() in ["double"]:
-                    data_type = constants.XS_DOUBLE
+                    data_type = value_constants.XS_DOUBLE
                 elif value.lower() in ["boolean", "bool"]:
-                    data_type = constants.XS_BOOL
+                    data_type = value_constants.XS_BOOL
                 elif value.lower() in ["int", "integer"]:
-                    data_type = constants.XS_INT
+                    data_type = value_constants.XS_INT
                 else:
-                    text = f"{self.name}: Datatype '{value}' of Attribute {attribute_name} can't be interpreted. Use {constants.XS_STRING} instead "
+                    text = f"{self.name}: Datatype '{value}' of Attribute {attribute_name} can't be interpreted. Use {value_constants.XS_STRING} instead "
                     logging.info(text)
-                    data_type = constants.XS_STRING
+                    data_type = value_constants.XS_STRING
             else:
-                data_type = constants.XS_STRING
+                data_type = value_constants.XS_STRING
 
             return data_type
 
@@ -199,7 +200,8 @@ class ExcelBlock(metaclass=ExcelIterator):
                 optional = True
                 attribute_name = attribute_name[1:]
 
-            attribute = classes.Attribute(self.pset, attribute_name, [], constants.VALUE_TYPE_LOOKUP[constants.LIST],
+            attribute = classes.Attribute(self.pset, attribute_name, [],
+                                          value_constants.VALUE_TYPE_LOOKUP[value_constants.LIST],
                                           data_type=data_type, optional=optional, description=description)
             attribute.revit_name = attribute_name
             attributes.add(attribute)
@@ -345,9 +347,9 @@ def _build_aggregations() -> None:
                     logging.error(f"[{block.name}] can't aggregate to {aggregate_block.name}")
                 else:
                     child_aggreg = classes.Aggregation(aggregate_block.object)
-                    relationship = constants.AGGREGATION
+                    relationship = value_constants.AGGREGATION
                     if aggregate_block in inherit_list:
-                        relationship += constants.INHERITANCE
+                        relationship += value_constants.INHERITANCE
 
                     aggregation.add_child(child_aggreg, relationship)
                     link_child_nodes(child_aggreg, aggregate_block)
@@ -357,7 +359,7 @@ def _build_aggregations() -> None:
         for inherit_block in inherit_list:
             if inherit_block not in aggregate_list:
                 child_aggreg = classes.Aggregation(inherit_block.object)
-                aggregation.add_child(child_aggreg, constants.INHERITANCE)
+                aggregation.add_child(child_aggreg, value_constants.INHERITANCE)
                 link_child_nodes(child_aggreg, inherit_block)
 
     root_blocks = get_root_blocks()

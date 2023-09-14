@@ -15,6 +15,7 @@ from lxml import etree
 
 from .. import classes, constants, Template
 from ..Template import HOME_DIR, BOOKMARK_TEMPLATE
+from ..constants import value_constants, json_constants
 
 output_date_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 output_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -163,7 +164,7 @@ def export_modelcheck(project: classes.Project, path: str, project_tree=None) ->
 
                 ident_name = obj.ident_attrib.name
                 ident_property_set = obj.ident_attrib.property_set.name
-                if ident_property_set == constants.IGNORE_PSET:
+                if ident_property_set == json_constants.IGNORE_PSET:
                     ident_property_set = ""
                 else:
                     ident_property_set = f"{ident_property_set}:"
@@ -489,10 +490,10 @@ def export_attribute_json(project: classes.Project, path):
                     pset_dict[attribute.name] = dict()
                     attribute_dict = pset_dict[attribute.name]
 
-                    attribute_dict[constants.DATA_TYPE] = attribute.data_type
+                    attribute_dict[json_constants.DATA_TYPE] = attribute.data_type
                     if not attribute.value:
-                        attribute_dict[constants.VALUE_TYPE] = "Exists"
+                        attribute_dict[json_constants.VALUE_TYPE] = value_constants.EXISTS
                     else:
-                        attribute_dict[constants.VALUE_TYPE] = attribute.value_type
-                    attribute_dict[constants.VALUE] = attribute.value
+                        attribute_dict[json_constants.VALUE_TYPE] = attribute.value_type
+                    attribute_dict[json_constants.VALUE] = attribute.value
         json.dump(json_dict, file, indent=1)
