@@ -108,7 +108,7 @@ class Project(object):
         if self._current_project_phase in self._project_phases:
             return self._current_project_phase
         else:
-            print(f"{self._current_project_phase} not in {self._project_phases}")
+            logging.info(f"{self._current_project_phase} not in {self._project_phases}")
 
     @current_project_phase.setter
     def current_project_phase(self, value: str) -> None:
@@ -268,6 +268,9 @@ class Hirarchy(object, metaclass=IterRegistry):
             return parent_element.project
         return None
 
+    def remove_parent(self) -> None:
+        self._parent = None
+
     def get_project_phase_dict(self) -> dict[str, bool]:
         return dict(self._project_phase_dict)
 
@@ -373,13 +376,24 @@ class Hirarchy(object, metaclass=IterRegistry):
         self.changed = True
 
     def remove_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
-        self.children.remove(child)
-        child.delete()
+        self._children.remove(child)
 
-    def delete(self) -> None:
+    def delete(self, recursive: bool = False) -> None:
+        logging.info(f"Delete {self.__class__.__name__} {self.name} (recursive: {recursive})")
+        if self.parent is not None:
+            self.parent.remove_child(self)
+
         if self in self._registry:
             self._registry.remove(self)
 
+        if recursive:
+            for child in list(self.children):
+                child.delete(recursive)
+
+        else:
+            for child in self.children:
+                child.remove_parent()
+        del self
 
 class Object(Hirarchy):
     _registry: set[Object] = set()
@@ -453,7 +467,7 @@ class Object(Hirarchy):
         self._aggregations.add(node)
 
     def remove_aggregation(self, node: Aggregation) -> None:
-        self.aggregations.remove(node)
+        self._aggregations.remove(node)
 
     @property
     def inherited_property_sets(self) -> dict[Object, list[PropertySet]]:
@@ -536,14 +550,14 @@ class Object(Hirarchy):
 
         return attributes
 
-    def delete(self) -> None:
-        Object._registry.remove(self)
-        pset: PropertySet
+    def delete(self, recursive: bool) -> None:
+        super(Object, self).delete(recursive)
+
         for pset in self.property_sets:
-            pset.delete()
+            pset.delete(recursive, override_ident_deletion=True)
 
         for aggregation in self.aggregations.copy():
-            aggregation.delete()
+            aggregation.delete(recursive)
 
     def get_property_set_by_name(self, property_set_name: str) -> PropertySet | None:
         for property_set in self.property_sets:
@@ -581,6 +595,9 @@ class PropertySet(Hirarchy):
         else:
             return self.name < other
 
+    def __str__(self):
+        return f"PropertySet: {self.name}"
+
     @property
     def is_predefined(self) -> bool:
         if self.object is None:
@@ -606,16 +623,17 @@ class PropertySet(Hirarchy):
                 self.remove_attribute(attribute)
         self.parent = new_parent
 
-    def delete(self) -> None:
-        super(PropertySet, self).delete()
+    def delete(self, recursive: bool = False, override_ident_deletion=False) -> None:
+        ident_attrib = None
         if self.object is not None:
-            ident = self.object.ident_attrib  # if identifier in Pset delete all attributes except identifier
-            if ident in self.attributes:
-                remove_list = [attribute for attribute in self.attributes if attribute != ident]
-                for attribute in remove_list:
-                    self.remove_attribute(attribute)
-            else:
-                self.object.remove_property_set(self)
+            ident_attrib = self.object.ident_attrib
+
+        if ident_attrib in self.attributes and not override_ident_deletion:
+            logging.error(f"Can't delete Propertyset {self.name} because it countains the identifier Attribute")
+            return
+
+        super(PropertySet, self).delete()
+        [attrib.delete(recursive) for attrib in self.attributes if attrib]
 
     @property
     def project(self) -> Project | None:
@@ -661,30 +679,21 @@ class PropertySet(Hirarchy):
             value.add_child(attrib)
             child.add_attribute(attrib)
 
-    def remove_attribute(self, value: Attribute) -> None:
+    def remove_attribute(self, value: Attribute, recursive=False) -> None:
         if value in self.attributes:
-            self.attributes.remove(value)
-            for child in self.children:
-                for attribute in list(child.attributes):
-                    if attribute.parent == value:
-                        child.remove_attribute(attribute)
+            self._attributes.remove(value)
+            if recursive:
+                for child in list(value.children):
+                    child.property_set.remove_attribute(child)
             self.changed = True
+        else:
+            logging.warning(f"{self.name} -> {value} not in Attributes")
 
     def get_attribute_by_name(self, name: str):
         for attribute in self.attributes:
             if attribute.name.lower() == name.lower():
                 return attribute
         return None
-
-    def remove_parent(self, old_parent: PropertySet):
-        remove_list = list()
-        for attribute in self.attributes:
-            if attribute.parent.property_set == old_parent:
-                remove_list.append(attribute)
-
-        for attribute in remove_list:
-            self.remove_attribute(attribute)
-        self._parent = None
 
     def create_child(self, name) -> PropertySet:
         child = PropertySet(name=name, project=self.project)
@@ -854,12 +863,9 @@ class Attribute(Hirarchy):
         else:
             return False
 
-    def delete(self) -> None:
-        if self in self._registry:
-            self._registry.remove(self)
+    def delete(self, recursive: bool) -> None:
+        super(Attribute, self).delete(recursive)
         self.property_set.remove_attribute(self)
-        for child in self.children:
-            child.delete()
 
     def create_child(self) -> Attribute:
         child = copy.copy(self)
@@ -896,13 +902,12 @@ class Aggregation(Hirarchy):
         self._parent_connection = parent_connection
         self.object.add_aggregation(self)
 
-    def delete(self) -> None:
-        super(Aggregation, self).delete()
+    def delete(self, recursive: bool = False) -> None:
+        super(Aggregation, self).delete(recursive)
+
         self.object.remove_aggregation(self)
         if not self.is_root:
-            self.parent.children.remove(self)
-        for child in self.children:
-            child.parent = None
+            self.parent.remove_child(self)
 
     @property
     def project(self) -> Project | None:
@@ -929,9 +934,9 @@ class Aggregation(Hirarchy):
         self._parent_connection = connection_type
         return True
 
-    def remove_parent(self):
-        self.parent.children.remove(self)
-        self._parent = None
+    def remove_child(self, value: Aggregation):
+        if value in self._children:
+            self._children.remove(value)
 
     def add_child(self, child: Aggregation, connection_type: int = value_constants.AGGREGATION) -> bool:
         """returns if adding child is allowed"""

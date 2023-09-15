@@ -235,9 +235,36 @@ def import_json(project: classes.Project, path: str):
         return return_dict
 
     def load_parents():
+        def find_parent(element):
+            print(f"gesucht: {element.name}")
+            for test_el,uuid in parent_dict.items():
+                if type(test_el) != type(element):
+                    continue
+                if uuid not in uuid_dict:
+                    continue
+                if test_el == element:
+                    continue
+                if test_el.parent is not None:
+                    continue
+
+                if test_el.name != element.name:
+                    continue
+
+                if isinstance(test_el,classes.Attribute):
+                    if test_el.value == element.value:
+                        return uuid
+                        continue
+                return uuid
+
+
         uuid_dict = classes.get_uuid_dict()
         for element, uuid in parent_dict.items():
             if uuid is not None:
+                if uuid not in uuid_dict:
+                    uuid = find_parent(element)
+                    print(f"neue uuid: {uuid}")
+                if uuid is None:
+                    continue
                 uuid_dict[uuid].add_child(element)
 
     def load_aggregation(aggregation_dict: dict, identifier: str, ):
