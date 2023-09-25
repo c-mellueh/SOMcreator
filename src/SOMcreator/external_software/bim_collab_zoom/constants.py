@@ -1,5 +1,4 @@
-from src.SOMcreator.constants import value_constants
-
+ANY = "Any"
 BCSVF = "bimcollabsmartviewfile"
 VERSION = "version"
 APPVER = "applicationversion"
@@ -27,45 +26,9 @@ PSETNAME = "PROPERTYSETNAME"
 TYPE = "TYPE"
 VALUETYPE = "VALUETYPE"
 UNIT = "UNIT"
-LESS = "Less"
-GREATER = "Greater"
 CONDITION = "CONDITION"
 STATE = "STATE"
 VALUE = "VALUE"
-ACTION = "ACTION"
-ATYPE = "ACTION.TYPE"
-ACTION_R = "ACTION.R"
-ACTION_G = "ACTION.G"
-ACTION_B = "ACTION.B"
-STRING = "StringValue"
-DOUBLE = "DoubleValue"
-BOOL = "BoolValue"
-LOGICAL = "LogicalValue"
 PROPERTY = "PROPERTY"
 PROPERTYSET = "PropertySet"
 NONE = "None"
-NOR = "Nor"
-ANY = "Any"
-ADD = "Add"
-STRING_UNDEF = "StringIsNotDefined"
-BOOL_UNDEF = "BooleanIsNotDefined"
-LOGICAL_UNDEF = "LogicalIsNotDefined"
-NUMERIC_UNDEF = "NumericIsNotDefined"
-
-STRING_DEF = "StringIsDefined"
-BOOL_DEF = "BooleanIsDefined"
-LOGICAL_DEF = "LogicalIsDefined"
-NUMERIC_DEF = "NumericIsDefined"
-
-ISNOT = "IsNot"
-IS = "Is"
-NOTEQ = "NotEquals"
-AND = "And..."
-REMOVE = "Remove"
-OR = "Or"
-
-DATATYPE_DICT = {value_constants.XS_STRING: STRING,
-                 value_constants.XS_BOOL: BOOL,
-                 value_constants.XS_INT: DOUBLE,
-                 value_constants.XS_DOUBLE: DOUBLE,
-                 value_constants.XS_LONG: DOUBLE}
