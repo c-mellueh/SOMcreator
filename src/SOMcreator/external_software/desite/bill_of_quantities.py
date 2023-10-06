@@ -1,6 +1,6 @@
 from __future__ import annotations
 import csv
-from src.SOMcreator import classes
+from ... import classes
 
 
 def get_distinct_attributes(property_sets: list[classes.PropertySet]):

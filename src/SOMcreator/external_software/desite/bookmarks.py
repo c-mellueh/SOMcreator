@@ -2,8 +2,8 @@ from __future__ import annotations
 import os
 import jinja2
 from lxml import etree
-from Template import HOME_DIR, BOOKMARK_TEMPLATE
-from src.SOMcreator import classes
+from ...Template import HOME_DIR, BOOKMARK_TEMPLATE
+from ... import classes
 
 
 def _handle_bookmark_list(proj: classes.Project) -> etree.ElementTree:

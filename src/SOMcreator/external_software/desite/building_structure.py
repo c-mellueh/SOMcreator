@@ -3,8 +3,8 @@ from xml.etree.ElementTree import Element
 
 from lxml import etree
 
-from src.SOMcreator import classes
-from src.SOMcreator.constants import value_constants
+from ... import classes
+from ...constants import value_constants
 from .desite import handle_header
 
 
@@ -101,7 +101,7 @@ def _handle_repository(xml_parent: Element, id_dict: dict[classes.Aggregation, s
 
 def _handle_relation_section(xml_parent: Element) -> None:
     xml_relation_section = etree.SubElement(xml_parent, "relationSection")
-    xml_id_mapping = etree.SubElement(xml_relation_section, "IDMapping")
+    etree.SubElement(xml_relation_section, "IDMapping")
     xml_relation = etree.SubElement(xml_relation_section, "relation")
     xml_relation.set("name", "default")
 
@@ -109,7 +109,7 @@ def _handle_relation_section(xml_parent: Element) -> None:
 def export_bs(project: classes.Project, path: str) -> None:
     if not path:
         return
-    xml_boq_export = handle_header(project, "bsExport")
+    xml_boq_export = handle_header(project.author, "bsExport")
     xml_elementsection, id_dict = _handle_elementsection(xml_boq_export)
 
     etree.SubElement(xml_boq_export, "linkSection")

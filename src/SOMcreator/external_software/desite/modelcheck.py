@@ -10,13 +10,22 @@ import jinja2
 from anytree import AnyNode
 from lxml import etree
 
-from constants import json_constants, value_constants
-from src.SOMcreator import classes, constants, Template
 from .desite import handle_header, output_date_time
 from ..bim_collab_zoom.rule import merge_list
+from ... import classes, constants, Template
+from ...constants import json_constants, value_constants
 
 
-def add_js_rule(parent: Element, file: codecs.StreamReaderWriter) -> str | None:
+def _handle_template() -> jinja2.Template:
+    file_loader = jinja2.FileSystemLoader(Template.HOME_DIR)
+    env = jinja2.Environment(loader=file_loader)
+    env.trim_blocks = True
+    env.lstrip_blocks = True
+    template = env.get_template(constants.TEMPLATE_NAME)
+    return template
+
+
+def _add_js_rule(parent: Element, file: codecs.StreamReaderWriter) -> str | None:
     name = os.path.basename(file.name)
     if not name.endswith(".js"):
         return None
@@ -38,19 +47,19 @@ def add_js_rule(parent: Element, file: codecs.StreamReaderWriter) -> str | None:
     return file
 
 
-def handle_element_section(xml_qa_export: Element) -> Element:
+def _handle_element_section(xml_qa_export: Element) -> Element:
     xml_element_section = etree.SubElement(xml_qa_export, "elementSection")
     return xml_element_section
 
 
-def handle_container(xml_element_section: Element, text) -> Element:
+def _handle_container(xml_element_section: Element, text) -> Element:
     container = etree.SubElement(xml_element_section, "container")
     container.set("ID", str(uuid.uuid4()))
     container.set("name", text)
     return container
 
 
-def handle_checkrun(xml_container: Element, name: str, author: str = "DesiteRuleCreator") -> Element:
+def _handle_checkrun(xml_container: Element, name: str, author: str = "DesiteRuleCreator") -> Element:
     checkrun = etree.SubElement(xml_container, "checkrun")
     _uuid = str(uuid.uuid4())
     checkrun.set("ID", _uuid)
@@ -63,21 +72,21 @@ def handle_checkrun(xml_container: Element, name: str, author: str = "DesiteRule
     checkrun.set("partsOfComposites", "0")
     checkrun.set("createFailed", "true")
     checkrun.set("createWarnings", "true")
-    checkrun.set("createIgnored", "false")
+    checkrun.set("createIgnored", "true")
     checkrun.set("createPassed", "true")
     checkrun.set("createUndefined", "false")
     return checkrun
 
 
-def init_xml(project: classes.Project) -> (Element, Element):
-    xml_qa_export = handle_header(project, "qaExport")
-    xml_element_section = handle_element_section(xml_qa_export)
-    text = f"{project.name} : {project.version}"
-    xml_container = handle_container(xml_element_section, text)
+def _init_xml(author: str, name: str, version: str) -> (Element, Element):
+    xml_qa_export = handle_header(author, "qaExport")
+    xml_element_section = _handle_element_section(xml_qa_export)
+    text = f"{name} : {version}"
+    xml_container = _handle_container(xml_element_section, text)
     return xml_container, xml_qa_export
 
 
-def handle_rule(xml_checkrun: Element, rule_type: str) -> Element:
+def _handle_rule(xml_checkrun: Element, rule_type: str) -> Element:
     rule = etree.SubElement(xml_checkrun, "rule")
     rule.set("type", rule_type)
     if rule_type == "UniquePattern":
@@ -88,39 +97,30 @@ def handle_rule(xml_checkrun: Element, rule_type: str) -> Element:
     return rule
 
 
-def handle_attribute_rule_list(xml_rule: Element) -> Element:
+def _handle_attribute_rule_list(xml_rule: Element) -> Element:
     attribute_rule_list = etree.SubElement(xml_rule, "attributeRuleList")
     return attribute_rule_list
 
 
-def handle_template() -> jinja2.Template:
-    file_loader = jinja2.FileSystemLoader(Template.HOME_DIR)
-    env = jinja2.Environment(loader=file_loader)
-    env.trim_blocks = True
-    env.lstrip_blocks = True
-    template = env.get_template(constants.TEMPLATE_NAME)
-    return template
-
-
-def define_xml_elements(project: classes.Project, xml_container: Element, name: str) -> (Element, Element):
-    xml_checkrun = handle_checkrun(xml_container, name=name, author=project.author)
-    xml_rule = handle_rule(xml_checkrun, "Attributes")
-    xml_attribute_rule_list = handle_attribute_rule_list(xml_rule)
-    handle_rule(xml_checkrun, "UniquePattern")
+def _define_xml_elements(author: str, xml_container: Element, name: str) -> (Element, Element):
+    xml_checkrun = _handle_checkrun(xml_container, name=name, author=author)
+    xml_rule = _handle_rule(xml_checkrun, "Attributes")
+    xml_attribute_rule_list = _handle_attribute_rule_list(xml_rule)
+    _handle_rule(xml_checkrun, "UniquePattern")
 
     return xml_checkrun, xml_attribute_rule_list
 
 
-def handle_js_rules(xml_attribute_rule_list: Element, starts_with: str) -> None:
+def _handle_js_rules(xml_attribute_rule_list: Element, starts_with: str) -> None:
     folder = os.path.join(Template.HOME_DIR, constants.FILEPATH_JS)
 
     for fn in os.listdir(folder):
-        if fn.startswith(starts_with):
+        if str(fn).startswith(starts_with):
             file = codecs.open(f"{folder}/{fn}", encoding="utf-8")
-            add_js_rule(xml_attribute_rule_list, file)
+            _add_js_rule(xml_attribute_rule_list, file)
 
 
-def handle_rule_script(xml_attribute_rule_list: Element, name: str) -> Element:
+def _handle_rule_script(xml_attribute_rule_list: Element, name: str) -> Element:
     rule_script = etree.SubElement(xml_attribute_rule_list, "ruleScript")
     rule_script.set("name", name)
     rule_script.set("active", "true")
@@ -128,69 +128,66 @@ def handle_rule_script(xml_attribute_rule_list: Element, name: str) -> Element:
     return rule_script
 
 
-def handle_code(xml_rule_script: Element) -> Element:
+def _handle_code(xml_rule_script: Element) -> Element:
     code = etree.SubElement(xml_rule_script, "code")
     return code
 
 
-def handle_attribute_rule_tree(xml_rule: Element) -> Element:
+def _handle_attribute_rule_tree(xml_rule: Element) -> Element:
     attribute_rule_tree = etree.SubElement(xml_rule, "attributeRuleTree")
     return attribute_rule_tree
 
 
-def handle_tree_structure(project: classes.Project, parent_xml_container, parent_node: AnyNode, template,
-                          xml_object_dict, export_type: str) -> None:
-    def create_container(xml_container, node: AnyNode):
-        new_xml_container = handle_container(xml_container, node.obj.name)
-        if export_type == "JSON":
-            create_js_object(parent_xml_container, parent_node)
-        elif export_type == "CSV":
-            create_csv_object(parent_xml_container, parent_node)
-        for child_node in sorted(node.children, key=lambda x: x.id):
-            handle_tree_structure(project, new_xml_container, child_node, template, xml_object_dict)
-
-    def create_js_object(xml_container, node: AnyNode):
-        print("CREATE_JS_OBJ")
+def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_container, parent_node: AnyNode, template,
+                           xml_object_dict, export_type: str) -> None:
+    def check_basics(node):
         obj: classes.Object = node.obj
         if obj.ident_attrib is None:
+            return obj, None, True
+
+        pset_dict = required_data_dict.get(obj)
+        if pset_dict is None:
+            return obj, None, True
+        return obj, pset_dict, False
+
+    def create_container(xml_container, node: AnyNode):
+        new_xml_container = _handle_container(xml_container, node.obj.name)
+        if export_type == "JS":
+            create_js_object(new_xml_container, parent_node)
+        elif export_type == "CSV":
+            create_csv_object(new_xml_container, parent_node)
+        for child_node in sorted(node.children, key=lambda x: x.id):
+            _handle_tree_structure(author, required_data_dict, new_xml_container, child_node, template, xml_object_dict,
+                                   export_type)
+
+    def create_js_object(xml_container, node: AnyNode):
+        obj, pset_dict, abort = check_basics(node)
+        if abort:
             return
-        xml_checkrun = handle_checkrun(xml_container, obj.name, project.author)
-        xml_rule = handle_rule(xml_checkrun, "Attributes")
-        xml_attribute_rule_list = handle_attribute_rule_list(xml_rule)
-        xml_rule_script = handle_rule_script(xml_attribute_rule_list, name=obj.name)
-        xml_code = handle_code(xml_rule_script)
-
-        property_sets = [pset for pset in obj.property_sets if
-                         len(pset.attributes) > 0]
-
-        ident_name = obj.ident_attrib.name
-        ident_property_set = obj.ident_attrib.property_set.name
-        if ident_property_set == json_constants.IGNORE_PSET:
-            ident_property_set = ""
-        else:
-            ident_property_set = f"{ident_property_set}:"
-
-        cdata_code = template.render(psets=property_sets, object=obj, ident=ident_name,
-                                     ident_pset=ident_property_set, constants=constants)
+        xml_checkrun = _handle_checkrun(xml_container, obj.name, author)
+        xml_rule = _handle_rule(xml_checkrun, "Attributes")
+        xml_attribute_rule_list = _handle_attribute_rule_list(xml_rule)
+        xml_rule_script = _handle_rule_script(xml_attribute_rule_list, name=obj.name)
+        xml_code = _handle_code(xml_rule_script)
+        cdata_code = template.render(pset_dict=pset_dict, constants=value_constants,
+                                     ignore_pset=json_constants.IGNORE_PSET)
         xml_code.text = cdata_code
-        handle_rule(xml_checkrun, "UniquePattern")
+        _handle_rule(xml_checkrun, "UniquePattern")
 
         xml_object_dict[xml_checkrun] = obj
 
     def create_csv_object(xml_container, node: AnyNode):
-        obj: classes.Object = node.obj
-        if obj.ident_attrib is None:
+        obj, pset_dict, abort = check_basics(node)
+        if abort:
             return
-        xml_checkrun = handle_checkrun(xml_container, obj.name, project.author)
-        xml_rule = handle_rule(xml_checkrun, "Attributes")
-        xml_attribute_rule_tree = handle_attribute_rule_tree(xml_rule)
-        xml_code = handle_code(xml_container)
+        xml_checkrun = _handle_checkrun(xml_container, obj.name, author)
+        xml_rule = _handle_rule(xml_checkrun, "Attributes")
+        xml_attribute_rule_tree = _handle_attribute_rule_tree(xml_rule)
+        xml_code = _handle_code(xml_container)
 
-        property_sets = [pset for pset in obj.property_sets if
-                         len(pset.attributes) > 0]
-        handle_rule_items_by_psets(property_sets, xml_attribute_rule_tree)
+        _handle_rule_items_by_pset_dict(pset_dict, xml_attribute_rule_tree)
         xml_code.text = "<![CDATA[]]>"
-        handle_rule(xml_checkrun, "UniquePattern")
+        _handle_rule(xml_checkrun, "UniquePattern")
 
         xml_object_dict[xml_checkrun] = obj
 
@@ -203,11 +200,11 @@ def handle_tree_structure(project: classes.Project, parent_xml_container, parent
             create_csv_object(parent_xml_container, parent_node)
 
 
-def csv_value_in_list(attribute: classes.Attribute):
+def _csv_value_in_list(attribute: classes.Attribute):
     return " ".join(str(val) for val in attribute.value)
 
 
-def csv_check_range(xml_parent: etree.Element, attribute: classes.Attribute) -> str:
+def _csv_check_range(attribute: classes.Attribute) -> str:
     sorted_range_list = sorted([[min(v1, v2), max(v1, v2)] for [v1, v2] in attribute.value])
     sorted_range_list = merge_list(sorted_range_list)
 
@@ -215,7 +212,7 @@ def csv_check_range(xml_parent: etree.Element, attribute: classes.Attribute) -> 
     return pattern
 
 
-def build_basics_ruleItem(xml_parent: etree.Element, attribute: classes.Attribute) -> etree.Element:
+def _build_basics_rule_item(xml_parent: etree.Element, attribute: classes.Attribute) -> etree.Element:
     xml_attrib = etree.SubElement(xml_parent, "ruleItem")
     xml_attrib.set("ID", attribute.uuid)
     xml_attrib.set("name", f"{attribute.property_set.name}:{attribute.name}##{attribute.data_type}")
@@ -223,19 +220,18 @@ def build_basics_ruleItem(xml_parent: etree.Element, attribute: classes.Attribut
     return xml_attrib
 
 
-def handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.Attribute):
-    xml_attrib = build_basics_ruleItem(xml_parent, attribute)
+def _handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.Attribute):
+    xml_attrib = _build_basics_rule_item(xml_parent, attribute)
 
     if not attribute.value:
         xml_attrib.set("pattern", "*")
         return
     pattern = "*"
-    pset_name = attribute.property_set.name
     if attribute.data_type in (value_constants.XS_INT, value_constants.XS_LONG, value_constants.XS_DOUBLE):
         if attribute.value_type == value_constants.LIST:
-            pattern = csv_value_in_list(attribute)
+            pattern = _csv_value_in_list(attribute)
         elif attribute.value_type == value_constants.RANGE:
-            pattern = csv_check_range(xml_parent, attribute)
+            pattern = _csv_check_range(attribute)
         else:
             logging.error(f"No Function defined for {attribute.name} ({attribute.value_type}x{attribute.data_type}")
             pattern = "*"
@@ -254,34 +250,37 @@ def handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.Att
     xml_attrib.set("pattern", pattern)
 
 
-def handle_rule_item_pset(xml_parent: etree.Element, property_set: classes.PropertySet):
+def _handle_rule_item_pset(xml_parent: etree.Element, property_set: classes.PropertySet,
+                           attributes: list[classes.Attribute]):
     xml_pset = etree.SubElement(xml_parent, "ruleItem")
     xml_pset.set("ID", property_set.uuid)
     xml_pset.set("name", property_set.name)
     xml_pset.set("type", "group")
-    for attribute in property_set.attributes:
-        handle_rule_item_attribute(xml_pset, attribute)
+    for attribute in attributes:
+        _handle_rule_item_attribute(xml_pset, attribute)
 
 
-def handle_rule_items_by_psets(property_sets: list[classes.PropertySet], attribute_rule_tree: etree.Element):
-    for pset in property_sets:
-        handle_rule_item_pset(attribute_rule_tree, pset)
+def _handle_rule_items_by_pset_dict(pset_dict: dict[classes.PropertySet, list[classes.Attribute]],
+                                    attribute_rule_tree: etree.Element):
+    for pset, attribute_list in pset_dict.items():
+        _handle_rule_item_pset(attribute_rule_tree, pset, attribute_list)
 
 
-def handle_object_rules(project: classes.Project, project_tree, base_xml_container: Element,
-                        template: jinja2.Template, export_type: str) -> dict[
-    Element, classes.Object]:
+def _handle_object_rules(author: str, required_data_dict: dict, project_tree: AnyNode, base_xml_container: Element,
+                         template: jinja2.Template, export_type: str) -> dict[Element, classes.Object]:
     xml_object_dict: dict[Element, classes.Object] = dict()
+
     root_nodes = project_tree.children
 
     for root_node in sorted(root_nodes, key=lambda x: x.id):
-        handle_tree_structure(project, base_xml_container, root_node, template, xml_object_dict, export_type)
+        _handle_tree_structure(author, required_data_dict, base_xml_container, root_node, template, xml_object_dict,
+                               export_type)
     return xml_object_dict
 
 
-def handle_data_section(xml_qa_export: Element, xml_checkrun_first: Element,
-                        xml_checkrun_obj: dict[Element, classes.Object],
-                        xml_checkrun_last: Element) -> None:
+def _handle_data_section(xml_qa_export: Element, xml_checkrun_first: Element,
+                         xml_checkrun_obj: dict[Element, classes.Object],
+                         xml_checkrun_last: Element) -> None:
     def get_name() -> str:
         """Transorms native IFC Attributes like IfcType into desite Attributes"""
 
@@ -318,7 +317,7 @@ def handle_data_section(xml_qa_export: Element, xml_checkrun_first: Element,
     xml_filter.set("pattern", '"Ungeprüft"')
 
 
-def handle_property_section(xml_qa_export: Element) -> None:
+def _handle_property_section(xml_qa_export: Element) -> None:
     repository = etree.SubElement(xml_qa_export, "repository")
     property_type_section = etree.SubElement(repository, "propertyTypeSection")
     ptype = etree.SubElement(property_type_section, "ptype")
@@ -328,23 +327,26 @@ def handle_property_section(xml_qa_export: Element) -> None:
     ptype.set("datatype", "xs:string")
     ptype.set("unit", "")
     ptype.set("inh", "true")
+    etree.SubElement(repository, "propertySection")
 
-    property_section = etree.SubElement(repository, "propertySection")
 
-
-def export(project: classes.Project, path: str, project_tree=None, export_type: str = "JSON") -> None:
+def export(project: classes.Project,
+           required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
+           path: str,
+           project_tree: AnyNode = None,
+           export_type: str = "JS") -> None:
     if project_tree is None:
         project_tree = project.tree()
-
-    template = handle_template()
-    xml_container, xml_qa_export = init_xml(project)
-    xml_checkrun_first, xml_attribute_rule_list = define_xml_elements(project, xml_container, "initial_tests")
-    handle_js_rules(xml_attribute_rule_list, "start")
-    xml_checkrun_obj = handle_object_rules(project, project_tree, xml_container, template, export_type)
-    xml_checkrun_last, xml_attribute_rule_list = define_xml_elements(project, xml_container, "untested")
-    handle_js_rules(xml_attribute_rule_list, "end")
-    handle_data_section(xml_qa_export, xml_checkrun_first, xml_checkrun_obj, xml_checkrun_last)
-    handle_property_section(xml_qa_export)
+    template = _handle_template()
+    xml_container, xml_qa_export = _init_xml(project.author, project.name, project.version)
+    xml_checkrun_first, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "initial_tests")
+    _handle_js_rules(xml_attribute_rule_list, "start")
+    xml_checkrun_obj = _handle_object_rules(project.author, required_data_dict, project_tree, xml_container, template,
+                                            export_type)
+    xml_checkrun_last, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "untested")
+    _handle_js_rules(xml_attribute_rule_list, "end")
+    _handle_data_section(xml_qa_export, xml_checkrun_first, xml_checkrun_obj, xml_checkrun_last)
+    _handle_property_section(xml_qa_export)
 
     tree = etree.ElementTree(xml_qa_export)
     with open(path, "wb") as f:
