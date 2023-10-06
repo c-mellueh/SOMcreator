@@ -12,6 +12,7 @@ from . import filehandling
 from .constants import value_constants, json_constants
 from .filehandling import create_mapping_script
 
+
 # Add child to Parent leads to reverse
 
 
@@ -55,6 +56,9 @@ class Project(object):
         self._current_project_phase = "Standart"
         self._project_phases = ["Standart"]
         self.change_log = list()
+
+    def get_object_by_identifier(self, identifier: str) -> Object | None:
+        return {obj.ident_value: obj for obj in self.objects}.get(identifier)
 
     def get_all_hirarchy_items(self) -> set[Object, PropertySet, Attribute, Aggregation]:
         hirarchy_set = set()
@@ -216,7 +220,7 @@ class Project(object):
         def create_childen(node: AnyNode):
             n_obj: Object = node.obj
             for child in n_obj.children:
-                child_node = AnyNode(id=child.name, obj=child, parent=node)
+                child_node = AnyNode(name=child.name, id=child.ident_value, obj=child, parent=node)
                 create_childen(child_node)
 
         base = AnyNode(id=self.name, obj=self)
@@ -224,7 +228,7 @@ class Project(object):
         for obj in self.objects:
             if obj.parent is not None:
                 continue
-            root_objects.append(AnyNode(id=obj.name, obj=obj, parent=base))
+            root_objects.append(AnyNode(name=obj.name, id=obj.ident_value, obj=obj, parent=base))
 
         for n in root_objects:
             create_childen(n)
@@ -394,6 +398,7 @@ class Hirarchy(object, metaclass=IterRegistry):
             for child in self.children:
                 child.remove_parent()
         del self
+
 
 class Object(Hirarchy):
     _registry: set[Object] = set()

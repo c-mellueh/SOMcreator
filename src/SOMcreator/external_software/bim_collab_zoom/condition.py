@@ -1,29 +1,23 @@
-from src.SOMcreator.constants import value_constants
+from ...constants import value_constants
 
 STRING = "StringValue"
 DOUBLE = "DoubleValue"
 BOOL = "BoolValue"
 LOGICAL = "LogicalValue"
 
-
-
-
-
-
-
-#String Conditions
+# String Conditions
 ISNOT = "IsNot"
 IS = "Is"
 CONTAINS = "Contains"
 DOESNOTCONTAIN = "DoesNotContain"
-STARTSWITH ="StartsWith"
+STARTSWITH = "StartsWith"
 ENDSWITH = "EndsWith"
 OR = "Or"
 NOR = "Nor"
 STRING_DEF = "StringIsDefined"
 STRING_UNDEF = "StringIsNotDefined"
 
-#NumberConditions
+# NumberConditions
 EQUALS = "Equals"
 NOTEQ = "NotEquals"
 LESS = "Less"
@@ -33,19 +27,18 @@ GREATEREQUAL = "GreaterEqual"
 NUMERIC_DEF = "NumericIsDefined"
 NUMERIC_UNDEF = "NumericIsNotDefined"
 
-#BoolConditions
+# BoolConditions
 BOOLTRUE = "BooleanTrue"
 BOOLFALSE = "BooleanFalse"
 BOOL_DEF = "BooleanIsDefined"
 BOOL_UNDEF = "BooleanIsNotDefined"
 
-#LogicContions
+# LogicContions
 LOGICTRUE = "LogicalTrue"
 LOGICFALSE = "LogicalFalse"
 LOGICUNKNOW = "LogicalUnknown"
 LOGICAL_DEF = "LogicalIsDefined"
 LOGICAL_UNDEF = "LogicalIsNotDefined"
-
 
 DATATYPE_DICT = {value_constants.XS_STRING: STRING,
                  value_constants.XS_BOOL: BOOL,
