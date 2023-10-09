@@ -15,6 +15,8 @@ from ..bim_collab_zoom.rule import merge_list
 from ... import classes, constants, Template
 from ...constants import json_constants, value_constants
 
+JS_EXPORT = "JS"
+TABLE_EXPORT = "TABLE"
 
 def _handle_template() -> jinja2.Template:
     file_loader = jinja2.FileSystemLoader(Template.HOME_DIR)
@@ -194,9 +196,9 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
     if parent_node.children:
         create_container(parent_xml_container, parent_node)
     else:
-        if export_type == "JSON":
+        if export_type == JS_EXPORT:
             create_js_object(parent_xml_container, parent_node)
-        elif export_type == "CSV":
+        elif export_type == TABLE_EXPORT:
             create_csv_object(parent_xml_container, parent_node)
 
 
@@ -335,6 +337,17 @@ def export(project: classes.Project,
            path: str,
            project_tree: AnyNode = None,
            export_type: str = "JS") -> None:
+
+    """
+
+    :param project:
+    :param required_data_dict:
+    :param path:
+    :param project_tree:
+    :param export_type: either JS or TABLE
+    :return:
+    """
+
     if project_tree is None:
         project_tree = project.tree()
     template = _handle_template()
