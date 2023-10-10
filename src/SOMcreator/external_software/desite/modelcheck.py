@@ -12,18 +12,20 @@ from lxml import etree
 
 from .desite import handle_header, output_date_time
 from ..bim_collab_zoom.rule import merge_list
+from ... import __version__
 from ... import classes, constants, Template
 from ...constants import json_constants, value_constants
 
 JS_EXPORT = "JS"
 TABLE_EXPORT = "TABLE"
 
-def _handle_template() -> jinja2.Template:
+
+def _handle_template(path: str | os.PathLike) -> jinja2.Template:
     file_loader = jinja2.FileSystemLoader(Template.HOME_DIR)
     env = jinja2.Environment(loader=file_loader)
     env.trim_blocks = True
     env.lstrip_blocks = True
-    template = env.get_template(constants.TEMPLATE_NAME)
+    template = env.get_template(path)
     return template
 
 
@@ -281,7 +283,7 @@ def _handle_object_rules(author: str, required_data_dict: dict, project_tree: An
 
 
 def _handle_data_section(xml_qa_export: Element, xml_checkrun_first: Element,
-                         xml_checkrun_obj: dict[Element, classes.Object],
+                         xml_checkrun_obj: dict[Element, classes.Object | None],
                          xml_checkrun_last: Element) -> None:
     def get_name() -> str:
         """Transorms native IFC Attributes like IfcType into desite Attributes"""
@@ -302,12 +304,15 @@ def _handle_data_section(xml_qa_export: Element, xml_checkrun_first: Element,
     for xml_checkrun, obj in xml_checkrun_obj.items():
         check_run_data = etree.SubElement(xml_data_section, "checkRunData")
         check_run_data.set("refID", str(xml_checkrun.attrib.get("ID")))
+        if obj is None:
+            etree.SubElement(check_run_data, "checkSet")
+            continue
         filter_list = etree.SubElement(check_run_data, "filterList")
         xml_filter = etree.SubElement(filter_list, "filter")
 
         xml_filter.set("name", get_name())
         xml_filter.set("dt", "xs:string")
-        pattern = f'"{obj.ident_attrib.value[0]}"'  # ToDO: ändern
+        pattern = f'"{obj.ident_value}"'
         xml_filter.set("pattern", pattern)
 
     check_run_data = etree.SubElement(xml_data_section, "checkRunData")
@@ -337,7 +342,6 @@ def export(project: classes.Project,
            path: str,
            project_tree: AnyNode = None,
            export_type: str = "JS") -> None:
-
     """
 
     :param project:
@@ -350,12 +354,89 @@ def export(project: classes.Project,
 
     if project_tree is None:
         project_tree = project.tree()
-    template = _handle_template()
+    template = _handle_template(Template.HOME_DIR)
     xml_container, xml_qa_export = _init_xml(project.author, project.name, project.version)
     xml_checkrun_first, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "initial_tests")
     _handle_js_rules(xml_attribute_rule_list, "start")
     xml_checkrun_obj = _handle_object_rules(project.author, required_data_dict, project_tree, xml_container, template,
                                             export_type)
+    xml_checkrun_last, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "untested")
+    _handle_js_rules(xml_attribute_rule_list, "end")
+    _handle_data_section(xml_qa_export, xml_checkrun_first, xml_checkrun_obj, xml_checkrun_last)
+    _handle_property_section(xml_qa_export)
+
+    tree = etree.ElementTree(xml_qa_export)
+    with open(path, "wb") as f:
+        tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
+
+
+def _csv_export(project, required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
+                path):
+    lines = list()
+    lines.append(";".join(["#", f"Created by SOMcreator v{__version__}"]))
+    lines.append("H;Property Name;;Data Type;Rule;Comment")
+
+    for obj, pset_dict in required_data_dict.items():
+        ident_attrib = f"{obj.ident_attrib.property_set.name}:{obj.ident_attrib.name}"
+        lines.append(";".join(
+            ["C", ident_attrib, "", obj.ident_attrib.data_type, obj.ident_value, f"Nach Objekt {obj.name} filtern"]))
+
+        for pset, attribute_list in pset_dict.items():
+            for attribute in attribute_list:
+                if attribute.value_type != value_constants.RANGE:
+                    lines.append(_handle_attribute_rule(attribute))
+    with open(path, "w") as file:
+        for line in lines:
+            file.write(line + "\n")
+
+
+def _handle_attribute_rule(attribute: classes.Attribute) -> str:
+    if attribute.value_type == value_constants.RANGE:
+        return ";".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
+                         f"Pruefung"])
+
+    if not attribute.value:
+        return ";".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
+                         f"Pruefung"])
+
+    return ";".join(
+        ["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, " ".join(attribute.value),
+         f"Pruefung"])
+
+
+def _fast_object_check(main_pset: str, main_attrib: str, author: str, required_data_dict: dict,
+                       base_xml_container: Element,
+                       template: jinja2.Template) -> dict[Element, None]:
+    xml_object_dict: dict[Element, classes.Object] = dict()
+    xml_checkrun = _handle_checkrun(base_xml_container, "Main Check", author)
+    xml_rule = _handle_rule(xml_checkrun, "Attributes")
+    xml_attribute_rule_list = _handle_attribute_rule_list(xml_rule)
+    xml_rule_script = _handle_rule_script(xml_attribute_rule_list, name="Main Check")
+    xml_code = _handle_code(xml_rule_script)
+    cdata_code = template.render(object_dict=required_data_dict, main_pset=main_pset, main_attrib=main_attrib,
+                                 constants=value_constants,
+                                 ignore_pset=json_constants.IGNORE_PSET)
+    xml_code.text = cdata_code
+    _handle_rule(xml_checkrun, "UniquePattern")
+    return {xml_checkrun: None}
+
+
+def fast_check(project: classes.Project, main_pset: str, main_attrib: str,
+               required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
+               path: str) -> None:
+    """
+    creates a single rule for all elements -> no containers for checkruns
+    :param project:
+    :param required_data_dict: Dictionary of all required Objects, Propertysets and Attributes
+    :param path: Export Path
+    :return:
+    """
+    template = _handle_template(Template.FAST_TEMPLATE)
+    xml_container, xml_qa_export = _init_xml(project.author, project.name, project.version)
+    xml_checkrun_first, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "initial_tests")
+    _handle_js_rules(xml_attribute_rule_list, "start")
+    xml_checkrun_obj = _fast_object_check(main_pset, main_attrib, project.author, required_data_dict, xml_container,
+                                          template)
     xml_checkrun_last, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "untested")
     _handle_js_rules(xml_attribute_rule_list, "end")
     _handle_data_section(xml_qa_export, xml_checkrun_first, xml_checkrun_obj, xml_checkrun_last)

@@ -4,6 +4,7 @@ import json
 
 HOME_DIR = os.path.dirname(__file__)
 TEMPLATE = "template.txt"
+FAST_TEMPLATE = "fast_template.txt"
 MAPPING_TEMPLATE = "mapping_template.txt"
 BOOKMARK_TEMPLATE = "bookmark_template.txt"
 
