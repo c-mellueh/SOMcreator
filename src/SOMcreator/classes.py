@@ -57,6 +57,28 @@ class Project(object):
         self._project_phases = ["Standart"]
         self.change_log = list()
 
+    def get_main_attribute(self) -> (str, str):
+        ident_attributes = dict()
+        ident_psets = dict()
+        for obj in self.objects:
+            if obj.ident_attrib is None:
+                continue
+            ident_pset = obj.ident_attrib.property_set.name
+            ident_attribute = obj.ident_attrib.name
+            if not ident_pset in ident_psets:
+                ident_psets[ident_pset] = 0
+            if not ident_attribute in ident_attributes:
+                ident_attributes[ident_attribute] = 0
+            ident_psets[ident_pset] += 1
+            ident_attributes[ident_attribute] += 1
+
+        ident_attribute = (sorted(ident_attributes.items(), key=lambda x: x[1]))
+        ident_pset = (sorted(ident_psets.items(), key=lambda x: x[1]))
+        if ident_attribute and ident_pset:
+            return ident_pset[0][0], ident_attribute[0][0]
+        else:
+            return "", ""
+
     def get_object_by_identifier(self, identifier: str) -> Object | None:
         return {obj.ident_value: obj for obj in self.objects}.get(identifier)
 
