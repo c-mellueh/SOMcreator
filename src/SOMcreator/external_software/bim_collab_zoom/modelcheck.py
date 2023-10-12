@@ -7,8 +7,8 @@ import uuid
 
 from lxml import etree
 
-from constants import value_constants
-from src.SOMcreator import classes
+from ...constants import value_constants
+from ... import classes
 from . import condition as c
 from . import constants as const
 from . import rule
