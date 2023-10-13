@@ -81,13 +81,13 @@ def _build_attribute_requirement(attribute: classes.Attribute, xml_parent: Eleme
 
     if attribute.value_type == value_constants.LIST:
         for value in attribute.value:
-            SubElement(xml_restriction, xml_xsd.ENUMERATION, nsmap=NSMAP).set(xml_xsd.VALUE, value)
+            SubElement(xml_restriction, xml_xsd.ENUMERATION, nsmap=NSMAP).set(xml_xsd.VALUE, str(value))
 
     if attribute.value_type == value_constants.RANGE:
         min_value = min(min(v[0] for v in attribute.value), min(v[1] for v in attribute.value))
         max_value = max(max(v[0] for v in attribute.value), max(v[1] for v in attribute.value))
-        SubElement(xml_restriction, xml_xsd.MININCLUSIVE, nsmap=NSMAP).set(xml_xsd.VALUE, min_value)
-        SubElement(xml_restriction, xml_xsd.MAXINCLUSIVE, nsmap=NSMAP).set(xml_xsd.VALUE, max_value)
+        SubElement(xml_restriction, xml_xsd.MININCLUSIVE, nsmap=NSMAP).set(xml_xsd.VALUE, str(min_value))
+        SubElement(xml_restriction, xml_xsd.MAXINCLUSIVE, nsmap=NSMAP).set(xml_xsd.VALUE, str(max_value))
 
     if attribute.value_type == value_constants.FORMAT:
         pattern = "|".join(attribute.value)
