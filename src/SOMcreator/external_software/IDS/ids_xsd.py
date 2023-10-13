@@ -1,5 +1,5 @@
-DEFAULT_NS = "{https://standards.buildingsmart.org/IDS}"
-SCHEME_LOCATION_NS = "https://standards.buildingsmart.org/IDS/ids_05.xsd"
+DEFAULT_NS = "{http://standards.buildingsmart.org/IDS}"
+SCHEME_LOCATION_NS = "http://standards.buildingsmart.org/IDS/ids_05.xsd"
 
 # Classes
 APPLICABILITY = DEFAULT_NS + 'applicability'
