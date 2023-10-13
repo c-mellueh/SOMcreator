@@ -354,7 +354,7 @@ def export(project: classes.Project,
 
     if project_tree is None:
         project_tree = project.tree()
-    template = _handle_template(Template.HOME_DIR)
+    template = _handle_template(Template.TEMPLATE)
     xml_container, xml_qa_export = _init_xml(project.author, project.name, project.version)
     xml_checkrun_first, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "initial_tests")
     _handle_js_rules(xml_attribute_rule_list, "start")
