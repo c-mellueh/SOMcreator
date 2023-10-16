@@ -29,6 +29,8 @@ def _build_specifications(required_data, xml_parent: Element) -> None:
     xml_specifications = SubElement(xml_parent, ids_xsd.SPECIFICATIONS, nsmap=NSMAP)
 
     for obj, property_set_dict in required_data.items():
+        if obj.ident_attrib is None:
+            continue
         _build_specification(obj, property_set_dict, xml_specifications)
 
 
