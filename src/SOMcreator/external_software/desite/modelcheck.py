@@ -159,7 +159,7 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
         if export_type == "JS":
             create_js_object(new_xml_container, parent_node)
         elif export_type == "CSV":
-            create_csv_object(new_xml_container, parent_node)
+            create_table_object(new_xml_container, parent_node)
         for child_node in sorted(node.children, key=lambda x: x.id):
             _handle_tree_structure(author, required_data_dict, new_xml_container, child_node, template, xml_object_dict,
                                    export_type)
@@ -180,7 +180,7 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
 
         xml_object_dict[xml_checkrun] = obj
 
-    def create_csv_object(xml_container, node: AnyNode):
+    def create_table_object(xml_container, node: AnyNode):
         obj, pset_dict, abort = check_basics(node)
         if abort:
             return
@@ -201,7 +201,7 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
         if export_type == JS_EXPORT:
             create_js_object(parent_xml_container, parent_node)
         elif export_type == TABLE_EXPORT:
-            create_csv_object(parent_xml_container, parent_node)
+            create_table_object(parent_xml_container, parent_node)
 
 
 def _csv_value_in_list(attribute: classes.Attribute):
@@ -370,13 +370,14 @@ def export(project: classes.Project,
         tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
 
 
-def _csv_export(project, required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
-                path):
+def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]], path):
     lines = list()
     lines.append(";".join(["#", f"Created by SOMcreator v{__version__}"]))
     lines.append("H;Property Name;;Data Type;Rule;Comment")
 
     for obj, pset_dict in required_data_dict.items():
+        if obj.ident_attrib is None:
+            continue
         ident_attrib = f"{obj.ident_attrib.property_set.name}:{obj.ident_attrib.name}"
         lines.append(";".join(
             ["C", ident_attrib, "", obj.ident_attrib.data_type, obj.ident_value, f"Nach Objekt {obj.name} filtern"]))
