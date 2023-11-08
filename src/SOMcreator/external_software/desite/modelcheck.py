@@ -339,8 +339,7 @@ def _handle_property_section(xml_qa_export: Element) -> None:
 
 def export(project: classes.Project,
            required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
-           path: str,
-           project_tree: AnyNode = None,
+           path: str, main_pset: str, main_attribute: str, project_tree: AnyNode = None,
            export_type: str = "JS") -> None:
     """
 
@@ -362,12 +361,25 @@ def export(project: classes.Project,
                                             export_type)
     xml_checkrun_last, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "untested")
     _handle_js_rules(xml_attribute_rule_list, "end")
+    _handle_untested(xml_attribute_rule_list, main_pset, main_attribute)
     _handle_data_section(xml_qa_export, xml_checkrun_first, xml_checkrun_obj, xml_checkrun_last)
     _handle_property_section(xml_qa_export)
 
     tree = etree.ElementTree(xml_qa_export)
     with open(path, "wb") as f:
         tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
+
+
+def _handle_untested(xml_attribute_rule_list: etree.Element, main_pset: str, main_attribute: str):
+    template = _handle_template(Template.UNTESTED)
+    cdata_code = template.render(pset_name=main_pset, ident_attrib=main_attribute)
+    rule_script = etree.SubElement(xml_attribute_rule_list, "ruleScript")
+    name = "untested"
+    rule_script.set("name", name)
+    rule_script.set("active", "true")
+    rule_script.set("resume", "false")
+    code = etree.SubElement(rule_script, "code")
+    code.text = etree.CDATA(cdata_code)
 
 
 def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]], path):
