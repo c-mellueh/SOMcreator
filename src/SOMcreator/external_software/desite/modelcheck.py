@@ -372,7 +372,7 @@ def export(project: classes.Project,
 
 def _handle_untested(xml_attribute_rule_list: etree.Element, main_pset: str, main_attribute: str):
     template = _handle_template(Template.UNTESTED)
-    cdata_code = template.render(pset_name=main_pset, ident_attrib=main_attribute)
+    cdata_code = template.render(pset_name=main_pset, attribute_name=main_attribute)
     rule_script = etree.SubElement(xml_attribute_rule_list, "ruleScript")
     name = "untested"
     rule_script.set("name", name)
