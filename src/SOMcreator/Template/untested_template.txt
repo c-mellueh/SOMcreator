@@ -1,6 +1,6 @@
 ﻿id = desiteThis.ID();
-pset = "Allgemeine_Eigenschaften:";
-ident_attrib = "bauteilKlassifikation";
+pset = "{{pset_name}}:";
+ident_attrib = "{{attribute_name}}";
 
 stat = desiteAPI.getPropertyValue(id, "Check_State", "xs:string");
 objekttyp = desiteAPI.getPropertyValue(id, pset + ident_attrib, "xs:string");
