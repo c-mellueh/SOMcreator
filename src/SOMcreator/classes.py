@@ -640,7 +640,7 @@ class PropertySet(Hirarchy):
     @parent.setter
     def parent(self, parent: PropertySet) -> None:
         if parent is None:
-            self.remove_parent(self._parent)
+            self.remove_parent()
             return
         self._parent = parent
 
@@ -661,6 +661,7 @@ class PropertySet(Hirarchy):
 
         super(PropertySet, self).delete()
         [attrib.delete(recursive) for attrib in self.attributes if attrib]
+        self.object.remove_property_set(self)
 
     @property
     def project(self) -> Project | None:
