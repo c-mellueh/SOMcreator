@@ -916,15 +916,6 @@ class Attribute(Hirarchy):
         self.add_child(child)
         return child
 
-    def __copy__(self) -> Attribute:
-        new_attrib: Attribute = Attribute(property_set=None, name=self.name, value=self.value,
-                                          value_type=self.value_type, data_type=self.data_type,
-                                          child_inherits_values=self.child_inherits_values, project=self.project,
-                                          project_phases=self._project_phase_dict)
-        if self.parent is not None:
-            self.parent.add_child(new_attrib)
-        return new_attrib
-
 
 class Aggregation(Hirarchy):
     _registry: set[Aggregation] = set()
