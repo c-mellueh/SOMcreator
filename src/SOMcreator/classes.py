@@ -772,6 +772,18 @@ class Attribute(Hirarchy):
         else:
             return self.name < other
 
+    def __copy__(self) -> Attribute:
+        new_attrib = Attribute(property_set=self.property_set, name=self.name, value=copy.copy(self.value),
+                               value_type=copy.copy(self.value_type),
+                               data_type=copy.copy(self.data_type), child_inherits_values=self.child_inherits_values,
+                               uuid=str(uuid4()),
+                               description=self.description, optional=self.optional, revit_mapping=self.revit_name,
+                               project=self.project, project_phases=self.get_project_phase_dict())
+
+        if self.parent is not None:
+            self.parent.add_child(new_attrib)
+        return new_attrib
+
     @property
     def project(self) -> Project | None:
         return self._get_project(self.property_set)
@@ -873,6 +885,10 @@ class Attribute(Hirarchy):
     @property
     def property_set(self) -> PropertySet:
         return self._property_set
+
+    @property_set.setter
+    def property_set(self, value: PropertySet) -> None:
+        self._property_set = value
 
     def is_equal(self, attribute: Attribute) -> bool:
         equal = True
