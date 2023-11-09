@@ -625,6 +625,20 @@ class PropertySet(Hirarchy):
     def __str__(self):
         return f"PropertySet: {self.name}"
 
+    def __copy__(self) -> PropertySet:
+        new_pset = PropertySet(name=self.name, obj=None, uuid=str(uuid4()), description=self.description,
+                               optional=self.optional, project=self.project,
+                               project_phases=self.get_project_phase_dict())
+
+        for attribute in self.attributes:
+            new_attribute = copy.copy(attribute)
+            new_pset.add_attribute(new_attribute)
+
+        if self.parent is not None:
+            self.parent.add_child(new_pset)
+
+        return new_pset
+
     @property
     def is_predefined(self) -> bool:
         if self.object is None:
@@ -696,12 +710,12 @@ class PropertySet(Hirarchy):
         self.changed = True
 
     def add_attribute(self, value: Attribute) -> None:
+        if value.property_set is not None and value.property_set != self:
+            value.property_set.remove_attribute(value)
         self._attributes.add(value)
         self.changed = True
 
-        # if value.property_set is not None:
-        #     value.property_set.remove_attribute(value)
-        value._property_set = self
+        value.property_set = self
         for child in self.children:
             attrib: Attribute = copy.copy(value)
             value.add_child(attrib)
