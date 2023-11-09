@@ -1,14 +1,14 @@
-﻿id = desiteThis.ID();
-pset = "{{pset_name}}:";
-ident_attrib = "{{attribute_name}}";
+var id = desiteThis.ID();
+var pset = "{{pset_name}}:";
+var ident_attrib = "{{attribute_name}}";
 
-stat = desiteAPI.getPropertyValue(id, "Check_State", "xs:string");
-objekttyp = desiteAPI.getPropertyValue(id, pset + ident_attrib, "xs:string");
+var stat = desiteAPI.getPropertyValue(id, "Check_State", "xs:string");
+var objekttyp = desiteAPI.getPropertyValue(id, pset + ident_attrib, "xs:string");
 
 if (stat == "Ungeprüft") {
     desiteResult.setCheckState('failed');
 
-    check_status = "Failed"
+    var check_status = "Failed"
     desiteAPI.setPropertyValue(id, "Check_State", "xs:string", check_status);
 
 }
