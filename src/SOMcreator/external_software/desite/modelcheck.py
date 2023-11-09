@@ -449,7 +449,7 @@ def fast_check(project: classes.Project, main_pset: str, main_attrib: str,
     xml_checkrun_obj = _fast_object_check(main_pset, main_attrib, project.author, required_data_dict, xml_container,
                                           template)
     xml_checkrun_last, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "untested")
-    _handle_js_rules(xml_attribute_rule_list, "end")
+    _handle_untested(xml_attribute_rule_list, main_pset, main_attrib)
     _handle_data_section(xml_qa_export, xml_checkrun_first, xml_checkrun_obj, xml_checkrun_last)
     _handle_property_section(xml_qa_export)
 
