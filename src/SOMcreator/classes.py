@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Iterator
 from uuid import uuid4
-
+import copy
 from anytree import AnyNode
 
 from . import filehandling
@@ -456,6 +456,33 @@ class Object(Hirarchy):
     def __lt__(self, other: Object):
         return self.ident_value < other.ident_value
 
+    def __copy__(self):
+        if self.is_concept:
+            ident_pset = None
+            new_ident_attribute = str(self.ident_attrib)
+        else:
+            ident_pset = self.ident_attrib.property_set
+
+        new_property_sets = set()
+        for pset in self.property_sets:
+            new_pset = copy.copy(pset)
+            new_property_sets.add(new_pset)
+            if pset == ident_pset:
+                new_ident_attribute = new_pset.get_attribute_by_name(self.ident_attrib.name)
+
+        new_object = Object(name=self.name, ident_attrib=new_ident_attribute, uuid=str(uuid4()),
+                            ifc_mapping=self.ifc_mapping,
+                            description=self.description, optional=self.optional, abbreviation=self.abbreviation,
+                            project=self.project, project_phases=self.get_project_phase_dict())
+
+        for pset in new_property_sets:
+            new_object.add_property_set(pset)
+
+        if self.parent is not None:
+            self.parent.add_child(new_object)
+
+        return new_object
+
     @property
     def project(self) -> Project | None:
         return self._project
@@ -625,6 +652,20 @@ class PropertySet(Hirarchy):
     def __str__(self):
         return f"PropertySet: {self.name}"
 
+    def __copy__(self) -> PropertySet:
+        new_pset = PropertySet(name=self.name, obj=None, uuid=str(uuid4()), description=self.description,
+                               optional=self.optional, project=self.project,
+                               project_phases=self.get_project_phase_dict())
+
+        for attribute in self.attributes:
+            new_attribute = copy.copy(attribute)
+            new_pset.add_attribute(new_attribute)
+
+        if self.parent is not None:
+            self.parent.add_child(new_pset)
+
+        return new_pset
+
     @property
     def is_predefined(self) -> bool:
         if self.object is None:
@@ -696,12 +737,12 @@ class PropertySet(Hirarchy):
         self.changed = True
 
     def add_attribute(self, value: Attribute) -> None:
+        if value.property_set is not None and value.property_set != self:
+            value.property_set.remove_attribute(value)
         self._attributes.add(value)
         self.changed = True
 
-        # if value.property_set is not None:
-        #     value.property_set.remove_attribute(value)
-        value._property_set = self
+        value.property_set = self
         for child in self.children:
             attrib: Attribute = copy.copy(value)
             value.add_child(attrib)
@@ -771,6 +812,18 @@ class Attribute(Hirarchy):
             return self.name < other.name
         else:
             return self.name < other
+
+    def __copy__(self) -> Attribute:
+        new_attrib = Attribute(property_set=self.property_set, name=self.name, value=copy.copy(self.value),
+                               value_type=copy.copy(self.value_type),
+                               data_type=copy.copy(self.data_type), child_inherits_values=self.child_inherits_values,
+                               uuid=str(uuid4()),
+                               description=self.description, optional=self.optional, revit_mapping=self.revit_name,
+                               project=self.project, project_phases=self.get_project_phase_dict())
+
+        if self.parent is not None:
+            self.parent.add_child(new_attrib)
+        return new_attrib
 
     @property
     def project(self) -> Project | None:
@@ -874,6 +927,10 @@ class Attribute(Hirarchy):
     def property_set(self) -> PropertySet:
         return self._property_set
 
+    @property_set.setter
+    def property_set(self, value: PropertySet) -> None:
+        self._property_set = value
+
     def is_equal(self, attribute: Attribute) -> bool:
         equal = True
 
@@ -899,15 +956,6 @@ class Attribute(Hirarchy):
         child = copy.copy(self)
         self.add_child(child)
         return child
-
-    def __copy__(self) -> Attribute:
-        new_attrib: Attribute = Attribute(property_set=None, name=self.name, value=self.value,
-                                          value_type=self.value_type, data_type=self.data_type,
-                                          child_inherits_values=self.child_inherits_values, project=self.project,
-                                          project_phases=self._project_phase_dict)
-        if self.parent is not None:
-            self.parent.add_child(new_attrib)
-        return new_attrib
 
 
 class Aggregation(Hirarchy):
