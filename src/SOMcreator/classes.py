@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Iterator
 from uuid import uuid4
-
+import copy
 from anytree import AnyNode
 
 from . import filehandling
@@ -455,6 +455,33 @@ class Object(Hirarchy):
 
     def __lt__(self, other: Object):
         return self.ident_value < other.ident_value
+
+    def __copy__(self):
+        if self.is_concept:
+            ident_pset = None
+            new_ident_attribute = str(self.ident_attrib)
+        else:
+            ident_pset = self.ident_attrib.property_set
+
+        new_property_sets = set()
+        for pset in self.property_sets:
+            new_pset = copy.copy(pset)
+            new_property_sets.add(new_pset)
+            if pset == ident_pset:
+                new_ident_attribute = new_pset.get_attribute_by_name(self.ident_attrib.name)
+
+        new_object = Object(name=self.name, ident_attrib=new_ident_attribute, uuid=str(uuid4()),
+                            ifc_mapping=self.ifc_mapping,
+                            description=self.description, optional=self.optional, abbreviation=self.abbreviation,
+                            project=self.project, project_phases=self.get_project_phase_dict())
+
+        for pset in new_property_sets:
+            new_object.add_property_set(pset)
+
+        if self.parent is not None:
+            self.parent.add_child(new_object)
+
+        return new_object
 
     @property
     def project(self) -> Project | None:
