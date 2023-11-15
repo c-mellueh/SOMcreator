@@ -49,7 +49,6 @@ class Project(object):
         self._name = ""
         self._author = author
         self._version = "1.0.0"
-        self._changed = True  # indecates if project was modified -> used for close dialog
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
@@ -155,38 +154,12 @@ class Project(object):
         return json_dict
 
     @property
-    def changed(self) -> bool:
-        def check_data():
-            for obj in Object:
-                if obj.changed:
-                    return True
-            return False
-
-        data = check_data()
-        if data or self._changed:
-            self._changed = True
-        else:
-            self._changed = False
-
-        return self._changed
-
-    @changed.setter
-    def changed(self, value: bool) -> None:
-        self._changed = value
-
-    def reset_changed(self) -> None:
-        for obj in Object:
-            obj.changed = False
-        self._changed = False
-
-    @property
     def name(self) -> str:
         return self._name
 
     @name.setter
     def name(self, value: str):
         self._name = value
-        self._changed = True
 
     @property
     def author(self) -> str:
@@ -195,7 +168,6 @@ class Project(object):
     @author.setter
     def author(self, value: str):
         self._author = value
-        self._changed = True
 
     @property
     def version(self) -> str:
@@ -204,7 +176,6 @@ class Project(object):
     @version.setter
     def version(self, value: str):
         self._version = value
-        self._changed = True
 
     def clear(self):
         for obj in Object:
@@ -217,7 +188,6 @@ class Project(object):
         self.name = ""
         self.author = ""
         self.version = "1.0.0"
-        self.changed = True
         self.name = ""
 
     @staticmethod
@@ -273,7 +243,6 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._parent = None
         self._children = set()
         self._name = name
-        self.changed = True
         self._mapping_dict = {
             value_constants.SHARED_PARAMETERS: True,
             json_constants.IFC_MAPPING: True
@@ -363,7 +332,6 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._name = value
         for child in self.children:
             child.name = value
-        self.changed = True
 
     @property
     def parent(self) -> PropertySet | Object | Attribute | Aggregation:
@@ -376,7 +344,6 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._parent = parent
         if parent is not None:
             self._parent._children.add(self)
-        self.changed = True
 
     @property
     def is_parent(self) -> bool:
@@ -399,7 +366,6 @@ class Hirarchy(object, metaclass=IterRegistry):
     def add_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
         self.children.add(child)
         child.parent = self
-        self.changed = True
 
     def remove_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
         self._children.remove(child)
@@ -447,8 +413,6 @@ class Object(Hirarchy):
         self.uuid = uuid
         if uuid is None:
             self.uuid = str(uuid4())
-
-        self.changed = True
 
     def __str__(self):
         return f"Object {self.name}"
@@ -558,7 +522,6 @@ class Object(Hirarchy):
     @ident_attrib.setter
     def ident_attrib(self, value: Attribute) -> None:
         self._ident_attrib = value
-        self.changed = True
 
     def get_all_property_sets(self) -> list[PropertySet]:
         """returns all Propertysets even if they dont fit the current Project Phase"""
@@ -584,7 +547,6 @@ class Object(Hirarchy):
     @name.setter
     def name(self, value: str):
         self._name = value
-        self.changed = True
 
     def add_property_set(self, property_set: PropertySet) -> None:
         self._property_sets.append(property_set)
@@ -641,7 +603,6 @@ class PropertySet(Hirarchy):
         self.uuid = uuid
         if self.uuid is None:
             self.uuid = str(uuid4())
-        self.changed = True
 
     def __lt__(self, other):
         if isinstance(other, PropertySet):
@@ -715,7 +676,6 @@ class PropertySet(Hirarchy):
     @object.setter
     def object(self, value: Object):
         self._object = value
-        self.changed = True
 
     def get_all_attributes(self) -> set[Attribute]:
         """returns all Attributes even if they don't fit the current Project Phase"""
@@ -734,13 +694,11 @@ class PropertySet(Hirarchy):
     @attributes.setter
     def attributes(self, value: set[Attribute]) -> None:
         self._attributes = value
-        self.changed = True
 
     def add_attribute(self, value: Attribute) -> None:
         if value.property_set is not None and value.property_set != self:
             value.property_set.remove_attribute(value)
         self._attributes.add(value)
-        self.changed = True
 
         value.property_set = self
         for child in self.children:
@@ -754,7 +712,6 @@ class PropertySet(Hirarchy):
             if recursive:
                 for child in list(value.children):
                     child.property_set.remove_attribute(child)
-            self.changed = True
         else:
             logging.warning(f"{self.name} -> {value} not in Attributes")
 
@@ -794,7 +751,6 @@ class Attribute(Hirarchy):
         else:
             self._revit_name = revit_mapping
 
-        self.changed = True
         self._child_inherits_values = child_inherits_values
         self.uuid = uuid
 
@@ -851,7 +807,7 @@ class Attribute(Hirarchy):
 
     @name.setter
     def name(self, value: str) -> None:
-        self.changed = True  # ToDo: add request for unlink
+        # ToDo: add request for unlink
         self._name = value
         for child in self.children:
             child.name = value
@@ -885,7 +841,6 @@ class Attribute(Hirarchy):
 
         if can_be_changed():
             self._value = new_value
-            self.changed = True
 
     @property
     def value_type(self) -> int:
@@ -896,12 +851,10 @@ class Attribute(Hirarchy):
 
         if not self.is_child:
             self._value_type = value
-            self.changed = True
 
         if self.is_parent:
             for child in self.children:
                 child._value_type = value
-                self.changed = True
 
     @property
     def data_type(self) -> str:
@@ -916,12 +869,10 @@ class Attribute(Hirarchy):
     def data_type(self, value: str) -> None:
         if not self.is_child:
             self._data_type = value
-            self.changed = True
 
         if self.is_parent:
             for child in self.children:
                 child._data_type = value
-                self.changed = True
 
     @property
     def property_set(self) -> PropertySet:
