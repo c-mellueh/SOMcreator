@@ -52,8 +52,8 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
-        self._current_project_phase = "Standart"
-        self._project_phases = ["Standart"]
+        self._current_project_phase = "Standard"
+        self._project_phases = ["Standard"]
         self.change_log = list()
 
     def get_main_attribute(self) -> (str, str):
