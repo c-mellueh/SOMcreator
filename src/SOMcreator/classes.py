@@ -421,6 +421,7 @@ class Object(Hirarchy):
         return self.ident_value < other.ident_value
 
     def __copy__(self):
+        new_ident_attribute = None
         if self.is_concept:
             ident_pset = None
             new_ident_attribute = str(self.ident_attrib)
@@ -433,6 +434,9 @@ class Object(Hirarchy):
             new_property_sets.add(new_pset)
             if pset == ident_pset:
                 new_ident_attribute = new_pset.get_attribute_by_name(self.ident_attrib.name)
+
+        if new_ident_attribute is None:
+            raise ValueError(f"Identifier Attribute could'nt be found")
 
         new_object = Object(name=self.name, ident_attrib=new_ident_attribute, uuid=str(uuid4()),
                             ifc_mapping=self.ifc_mapping,
