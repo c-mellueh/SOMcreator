@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import copy
 import logging
 import os
 from typing import Iterator
 from uuid import uuid4
-import copy
+
+import copy as cp
 from anytree import AnyNode
 
 from . import filehandling
@@ -465,7 +465,7 @@ class Object(Hirarchy):
 
         new_property_sets = set()
         for pset in self.property_sets:
-            new_pset = copy.copy(pset)
+            new_pset = cp.copy(pset)
             new_property_sets.add(new_pset)
             if pset == ident_pset:
                 new_ident_attribute = new_pset.get_attribute_by_name(self.ident_attrib.name)
@@ -658,7 +658,7 @@ class PropertySet(Hirarchy):
                                project_phases=self.get_project_phase_dict())
 
         for attribute in self.attributes:
-            new_attribute = copy.copy(attribute)
+            new_attribute = cp.copy(attribute)
             new_pset.add_attribute(new_attribute)
 
         if self.parent is not None:
@@ -744,7 +744,7 @@ class PropertySet(Hirarchy):
 
         value.property_set = self
         for child in self.children:
-            attrib: Attribute = copy.copy(value)
+            attrib: Attribute = cp.copy(value)
             value.add_child(attrib)
             child.add_attribute(attrib)
 
@@ -814,9 +814,9 @@ class Attribute(Hirarchy):
             return self.name < other
 
     def __copy__(self) -> Attribute:
-        new_attrib = Attribute(property_set=self.property_set, name=self.name, value=copy.copy(self.value),
-                               value_type=copy.copy(self.value_type),
-                               data_type=copy.copy(self.data_type), child_inherits_values=self.child_inherits_values,
+        new_attrib = Attribute(property_set=self.property_set, name=self.name, value=cp.copy(self.value),
+                               value_type=cp.copy(self.value_type),
+                               data_type=cp.copy(self.data_type), child_inherits_values=self.child_inherits_values,
                                uuid=str(uuid4()),
                                description=self.description, optional=self.optional, revit_mapping=self.revit_name,
                                project=self.project, project_phases=self.get_project_phase_dict())
@@ -953,7 +953,7 @@ class Attribute(Hirarchy):
         self.property_set.remove_attribute(self)
 
     def create_child(self) -> Attribute:
-        child = copy.copy(self)
+        child = cp.copy(self)
         self.add_child(child)
         return child
 
