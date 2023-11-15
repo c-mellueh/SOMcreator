@@ -411,7 +411,7 @@ def _handle_attribute_rule(attribute: classes.Attribute) -> str:
                          f"Pruefung"])
 
     return ";".join(
-        ["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, " ".join(attribute.value),
+        ["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, " ".join(str(attribute.value)),
          f"Pruefung"])
 
 
