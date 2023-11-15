@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-from typing import TypedDict, Union
+from typing import TypedDict
 import json
 import logging
 import os
-
 import jinja2
 
 from . import classes
-from .classes import PropertySet, Project, Attribute, Aggregation, Object
 from .Template import MAPPING_TEMPLATE, HOME_DIR
-
-ClassTypes = Union[Project, Object, PropertySet, Attribute, Aggregation]
 
 
 class StandardDict(TypedDict):
@@ -116,18 +112,19 @@ def export_json(project: classes.Project, path: str) -> dict:
         project_dict[PROJECT_PHASES] = project.get_project_phase_list()
 
     def fill_basics(entity_dict: ObjectDict | PropertySetDict | AttributeDict | AggregationDict,
-                    element: Project | PropertySet | Attribute | Object | Aggregation) -> None:
+                    element: classes.ClassTypes) -> None:
         """function gets called from all Entities"""
         entity_dict[NAME] = element.name
         entity_dict[OPTIONAL] = element.optional
         project_phase_dict = element.get_project_phase_dict()
-        entity_dict[PROJECT_PHASES] = [project_phase_dict.get(phase) or True for phase in
-                                       element.project.get_project_phase_list()]
+        entity_dict[PROJECT_PHASES] = [
+            project_phase_dict.get(phase) if project_phase_dict.get(phase) is not None else True for phase in
+            project.get_project_phase_list()]
         parent = None if element.parent is None else element.parent.uuid
         entity_dict[PARENT] = parent
         entity_dict[DESCRIPTION] = element.description
 
-    def create_attribute_entry(attribute: Attribute) -> AttributeDict:
+    def create_attribute_entry(attribute: classes.Attribute) -> AttributeDict:
         attribute_dict: AttributeDict = dict()
         fill_basics(attribute_dict, attribute)
         attribute_dict[DATA_TYPE] = attribute.data_type
@@ -239,7 +236,7 @@ def import_json(project: classes.Project, path: str):
             project_phases = [project_phases.get(phase) or True for phase in pahse_name_list]
         elif project_phases is None:
             project_phases = [True for _ in pahse_name_list]
-        elif isinstance(project_phases, list):
+        elif not isinstance(project_phases, list):
             logging.error(f"ProjectPhase hat falsches Format ({type(project_phases)}) -> set all to True")
             project_phases = [True for _ in pahse_name_list]
         project_phase_dict = {name: project_phases[index] for index, name in enumerate(pahse_name_list)}
@@ -288,7 +285,7 @@ def import_json(project: classes.Project, path: str):
         parent_dict[attribute] = parent
 
     def load_parents():
-        def find_parent(element: ClassTypes):
+        def find_parent(element: classes.ClassTypes):
             for test_el, identifier in parent_dict.items():
                 if type(test_el) is not type(element):
                     continue
@@ -340,7 +337,7 @@ def import_json(project: classes.Project, path: str):
 
     if not os.path.isfile(path):
         return
-    parent_dict: dict[ClassTypes, str] = {}
+    parent_dict: dict[classes.ClassTypes, str] = {}
     aggregation_parent_dict: dict[classes.Aggregation, tuple[str, int]] = dict()
 
     with open(path, "r") as file:

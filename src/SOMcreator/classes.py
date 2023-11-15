@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Iterator
+from typing import Iterator, Union
 from uuid import uuid4
 
 import copy as cp
@@ -10,7 +10,6 @@ from anytree import AnyNode
 
 from . import filehandling
 from .constants import value_constants, json_constants
-from .filehandling import create_mapping_script
 
 
 # Add child to Parent leads to reverse
@@ -143,7 +142,7 @@ class Project(object):
             logging.error(f"'{value}' nicht in Leistungsphasen-verzeichnis enthalten")
 
     def create_mapping_script(self, pset_name: str, path: str) -> None:
-        create_mapping_script(self, pset_name, path)
+        filehandling.create_mapping_script(self, pset_name, path)
 
     def open(self, path: str | os.PathLike) -> dict:
         json_dict = filehandling.import_json(self, path)
@@ -520,7 +519,7 @@ class Object(Hirarchy):
             return True
 
     @property
-    def ident_attrib(self) -> Attribute|str:
+    def ident_attrib(self) -> Attribute | str:
         return self._ident_attrib
 
     @ident_attrib.setter
@@ -738,7 +737,7 @@ class PropertySet(Hirarchy):
 class Attribute(Hirarchy):
     _registry: set[Attribute] = set()
 
-    def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: int,
+    def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: str,
                  data_type: str = "xs:string",
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
@@ -1017,3 +1016,6 @@ class Aggregation(Hirarchy):
 
     def identity(self) -> str:
         return self.id_group() + "_" + self.object.abbreviation + "_xxx"
+
+
+ClassTypes = Union[Project, Object, PropertySet, Attribute, Aggregation]
