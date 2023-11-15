@@ -64,9 +64,9 @@ class Project(object):
                 continue
             ident_pset = obj.ident_attrib.property_set.name
             ident_attribute = obj.ident_attrib.name
-            if not ident_pset in ident_psets:
+            if ident_pset not in ident_psets:
                 ident_psets[ident_pset] = 0
-            if not ident_attribute in ident_attributes:
+            if ident_attribute not in ident_attributes:
                 ident_attributes[ident_attribute] = 0
             ident_psets[ident_pset] += 1
             ident_attributes[ident_attribute] += 1
@@ -367,7 +367,7 @@ class Hirarchy(object, metaclass=IterRegistry):
         self.children.add(child)
         child.parent = self
 
-    def remove_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
+    def remove_child(self, child: PropertySet | Object | Attribute | Aggregation | Hirarchy) -> None:
         self._children.remove(child)
 
     def delete(self, recursive: bool = False) -> None:
