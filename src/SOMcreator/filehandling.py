@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import TypedDict, Union
 import json
 import logging
 import os
@@ -7,8 +8,66 @@ import os
 import jinja2
 
 from . import classes
+from .classes import PropertySet, Project, Attribute, Aggregation, Object
 from .Template import MAPPING_TEMPLATE, HOME_DIR
-from .constants import json_constants
+
+ClassTypes = Union[Project, Object, PropertySet, Attribute, Aggregation]
+
+
+class StandardDict(TypedDict):
+    name: str
+    optional: bool
+    ProjectPhases: list[bool]
+    parent: str | None
+    description: str
+
+
+class MainDict(TypedDict):
+    Project: ProjectDict
+    PredefinedPropertySets: dict[str, PropertySetDict]
+    Objects: dict[str, ObjectDict]
+    Aggregations: dict[str, AggregationDict]
+    AggregationScenes: dict[str, AggregationScene]
+
+
+class ProjectDict(TypedDict):
+    name: str
+    author: str
+    version: str
+    AggregationAttributeName: str
+    AggregationPsetName: str
+    current_project_phase: str
+    ProjectPhases: list[str]
+
+
+class ObjectDict(StandardDict):
+    IfcMappings: list[str]
+    abbreviation: str
+    ident_attribute: str
+    PropertySets: dict[str, PropertySetDict]
+
+
+class PropertySetDict(StandardDict):
+    Attributes: dict[str, AttributeDict]
+
+
+class AttributeDict(StandardDict):
+    data_type: str
+    value_type: str
+    child_inherits_value: bool
+    revit_mapping: str
+    Value: list[str] | list[float] | list[[float, float]]
+
+
+class AggregationDict(StandardDict):
+    Object: str | None
+    connection: int
+    x_pos: float
+    y_pos: float
+
+
+class AggregationScene(TypedDict):
+    Nodes: list[str]
 
 
 def string_to_bool(text: str) -> bool | None:
@@ -47,97 +106,98 @@ def create_mapping_script(project: classes.Project, pset_name: str, path: str):
 
 
 def export_json(project: classes.Project, path: str) -> dict:
-    def create_project_data(project_dict: dict) -> None:
-        project_dict[json_constants.NAME] = project.name
-        project_dict[json_constants.AUTHOR] = project.author
-        project_dict[json_constants.VERSION] = project.version
-        project_dict[json_constants.AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
-        project_dict[json_constants.AGGREGATION_PSET] = project.aggregation_pset
-        project_dict[json_constants.CURRENT_PR0JECT_PHASE] = project.current_project_phase
-        project_dict[json_constants.PROJECT_PHASES] = project.get_project_phase_list()
+    def create_project_data(project_dict: ProjectDict) -> None:
+        project_dict[NAME] = project.name
+        project_dict[AUTHOR] = project.author
+        project_dict[VERSION] = project.version
+        project_dict[AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
+        project_dict[AGGREGATION_PSET] = project.aggregation_pset
+        project_dict[CURRENT_PR0JECT_PHASE] = project.current_project_phase
+        project_dict[PROJECT_PHASES] = project.get_project_phase_list()
 
-    def fill_basics(entity_dict, entity):
+    def fill_basics(entity_dict: ObjectDict | PropertySetDict | AttributeDict | AggregationDict,
+                    element: Project | PropertySet | Attribute | Object | Aggregation) -> None:
         """function gets called from all Entities"""
-        entity_dict[json_constants.NAME] = entity.name
-        entity_dict[json_constants.OPTIONAL] = entity.optional
-        entity_dict[json_constants.PROJECT_PHASES] = entity.get_project_phase_dict()
-        parent = None if entity.parent is None else entity.parent.uuid
-        entity_dict[json_constants.PARENT] = parent
-        entity_dict[json_constants.DESCRIPTION] = entity.description
+        entity_dict[NAME] = element.name
+        entity_dict[OPTIONAL] = element.optional
+        project_phase_dict = element.get_project_phase_dict()
+        entity_dict[PROJECT_PHASES] = [project_phase_dict.get(phase) or True for phase in
+                                       element.project.get_project_phase_list()]
+        parent = None if element.parent is None else element.parent.uuid
+        entity_dict[PARENT] = parent
+        entity_dict[DESCRIPTION] = element.description
 
-    def create_attribute_entry(attributes_dict, attribute):
-        attribute_dict = dict()
+    def create_attribute_entry(attribute: Attribute) -> AttributeDict:
+        attribute_dict: AttributeDict = dict()
         fill_basics(attribute_dict, attribute)
-        attribute_dict[json_constants.DATA_TYPE] = attribute.data_type
-        attribute_dict[json_constants.VALUE_TYPE] = attribute.value_type
-        attribute_dict[json_constants.CHILD_INHERITS_VALUE] = attribute.child_inherits_values
-        attribute_dict[json_constants.REVIT_MAPPING] = attribute.revit_name
-        attribute_dict[json_constants.VALUE] = attribute.value
-        attributes_dict[attribute.uuid] = attribute_dict
+        attribute_dict[DATA_TYPE] = attribute.data_type
+        attribute_dict[VALUE_TYPE] = attribute.value_type
+        attribute_dict[CHILD_INHERITS_VALUE] = attribute.child_inherits_values
+        attribute_dict[REVIT_MAPPING] = attribute.revit_name
+        attribute_dict[VALUE] = attribute.value
+        return attribute_dict
 
-    def create_pset_entry(psets_dict: dict, pset: classes.PropertySet):
-        pset_dict = dict()
+    def create_pset_entry(pset: classes.PropertySet) -> PropertySetDict:
+        pset_dict: PropertySetDict = dict()
         fill_basics(pset_dict, pset)
         attributes_dict = dict()
         for attribute in pset.get_all_attributes():
-            create_attribute_entry(attributes_dict, attribute)
-        pset_dict[json_constants.ATTRIBUTES] = attributes_dict
-        psets_dict[pset.uuid] = pset_dict
+            new_dict = create_attribute_entry(attribute)
+            attributes_dict[attribute.uuid] = new_dict
+        pset_dict[ATTRIBUTES] = attributes_dict
+        return pset_dict
 
-    def create_object_entry(objects_dict: dict, object: classes.Object):
+    def create_object_entry(element: classes.Object) -> ObjectDict:
 
-        object_dict = dict()
-        fill_basics(object_dict, object)
+        object_dict: ObjectDict = dict()
+        fill_basics(object_dict, element)
 
-        if isinstance(obj.ifc_mapping, set):
-            object_dict[json_constants.IFC_MAPPINGS] = list(object.ifc_mapping)
+        if isinstance(element.ifc_mapping, set):
+            object_dict[IFC_MAPPINGS] = list(element.ifc_mapping)
         else:
-            object_dict[json_constants.IFC_MAPPINGS] = object.ifc_mapping
+            object_dict[IFC_MAPPINGS] = list(element.ifc_mapping)
 
         psets_dict = dict()
-        for pset in object.get_all_property_sets():
-            create_pset_entry(psets_dict, pset)
+        for pset in element.get_all_property_sets():
+            psets_dict[pset.uuid] = create_pset_entry(pset)
 
-        object_dict[json_constants.PROPERTY_SETS] = psets_dict
-        object_dict[json_constants.ABBREVIATION] = object.abbreviation
+        object_dict[PROPERTY_SETS] = psets_dict
+        object_dict[ABBREVIATION] = element.abbreviation
 
-        objects_dict[obj.uuid] = object_dict
-        if isinstance(object.ident_attrib, classes.Attribute):
-            object_dict[json_constants.IDENT_ATTRIBUTE] = object.ident_attrib.uuid
+        if isinstance(element.ident_attrib, classes.Attribute):
+            object_dict[IDENT_ATTRIBUTE] = element.ident_attrib.uuid
         else:
-            object_dict[json_constants.IDENT_ATTRIBUTE] = object.ident_attrib
+            object_dict[IDENT_ATTRIBUTE] = element.ident_attrib
 
-    def create_aggregation_entry(aggregations_dict, aggregation: classes.Aggregation):
-        aggregation_dict = dict()
-        fill_basics(aggregation_dict, aggregation)
-        aggregation_dict[json_constants.OBJECT] = aggregation.object.uuid
-        if aggregation.parent is not None:
-            aggregation_dict[json_constants.PARENT] = aggregation.parent.uuid
+        return object_dict
+
+    def create_aggregation_entry(element: classes.Aggregation) -> AggregationDict:
+        aggregation_dict: AggregationDict = dict()
+        fill_basics(aggregation_dict, element)
+        aggregation_dict[OBJECT] = element.object.uuid
+        if element.parent is not None:
+            aggregation_dict[PARENT] = element.parent.uuid
         else:
-            aggregation_dict[json_constants.PARENT] = aggregation.parent
-        aggregation_dict[json_constants.CONNECTION] = aggregation.parent_connection
-        aggregations_dict[aggregation.uuid] = aggregation_dict
+            aggregation_dict[PARENT] = str(element.parent)
+        aggregation_dict[CONNECTION] = element.parent_connection
+        return aggregation_dict
 
-    main_dict = dict()
-    main_dict[json_constants.PROJECT] = dict()
-    create_project_data(main_dict[json_constants.PROJECT])
+    main_dict: MainDict = dict()
+    main_dict[PROJECT] = dict()
+    create_project_data(main_dict[PROJECT])
 
-    predef_pset_dict = dict()
-    predefined_psets = project.get_predefined_psets()
-    for entity in sorted(predefined_psets, key=lambda x: x.uuid):
-        create_pset_entry(predef_pset_dict, entity)
-    main_dict[json_constants.PREDEFINED_PSETS] = predef_pset_dict
+    main_dict[PREDEFINED_PSETS] = dict()
+    for predefined_property_set in sorted(project.get_predefined_psets(), key=lambda x: x.uuid):
+        main_dict[PREDEFINED_PSETS][predefined_property_set.uuid] = create_pset_entry(predefined_property_set)
 
-    objects_dict = dict()
-    for obj in project.get_all_objects():
-        create_object_entry(objects_dict, obj)
+    main_dict[OBJECTS] = dict()
+    for obj in sorted(project.get_all_objects(), key=lambda o: o.uuid):
+        main_dict[OBJECTS][obj.uuid] = create_object_entry(obj)
 
-    main_dict[json_constants.OBJECTS] = objects_dict
-
-    aggregations_dict = dict()
+    main_dict[AGGREGATIONS] = dict()
     for aggregation in project.get_all_aggregations():
-        create_aggregation_entry(aggregations_dict, aggregation)
-    main_dict[json_constants.AGGREGATIONS] = aggregations_dict
+        main_dict[AGGREGATIONS][aggregation.uuid] = create_aggregation_entry(aggregation)
+
     with open(path, "w") as file:
         json.dump(main_dict, file, indent=2)
 
@@ -145,28 +205,20 @@ def export_json(project: classes.Project, path: str) -> dict:
 
 
 def import_json(project: classes.Project, path: str):
-    if not os.path.isfile(path):
-        return
-    parent_dict = {}
-    aggregation_parent_dict: dict[classes.Aggregation, (str, int)] = dict()
+    def load_project_data(project_dict: ProjectDict) -> None:
+        project.name = project_dict.get(NAME)
+        project.author = project_dict.get(AUTHOR)
+        project.version = project_dict.get(VERSION)
 
-    with open(path, "r") as file:
-        main_dict: dict = json.load(file)
+        aggregation_pset_name = project_dict.get(AGGREGATION_PSET)
+        aggregation_attribute = project_dict.get(AGGREGATION_ATTRIBUTE)
+        current_project_phase = project_dict.get(CURRENT_PR0JECT_PHASE)
+        project_phases = project_dict.get(PROJECT_PHASES)
 
-    def load_project_data(project_dict: dict):
-        project.name = project_dict.get(json_constants.NAME)
-        project.author = project_dict.get(json_constants.AUTHOR)
-        project.version = project_dict.get(json_constants.VERSION)
-
-        pset = project_dict.get(json_constants.AGGREGATION_PSET)
-        attribute = project_dict.get(json_constants.AGGREGATION_ATTRIBUTE)
-        current_project_phase = project_dict.get(json_constants.CURRENT_PR0JECT_PHASE)
-        project_phases = project_dict.get(json_constants.PROJECT_PHASES)
-
-        if pset is not None:
-            project.aggregation_pset = pset
-        if attribute is not None:
-            project.aggregation_attribute = attribute
+        if aggregation_pset_name is not None:
+            project.aggregation_pset = aggregation_pset_name
+        if aggregation_attribute is not None:
+            project.aggregation_attribute = aggregation_attribute
         if project_phases is not None and isinstance(project_phases, list):
             project._project_phases = project_phases
 
@@ -175,51 +227,59 @@ def import_json(project: classes.Project, path: str):
         elif project.get_project_phase_list():
             project.current_project_phase = project.get_project_phase_list()[0]
 
-    def load_basics(element_dict: dict) -> (str, str, str):
-        name = element_dict[json_constants.NAME]
-        description = element_dict[json_constants.DESCRIPTION]
-        optional = element_dict[json_constants.OPTIONAL]
-        parent = element_dict[json_constants.PARENT]
-        project_phases = element_dict.get(json_constants.PROJECT_PHASES)
-        if not isinstance(project_phases, dict):
-            project_phases = None
-        return name, description, optional, parent, project_phases
+    def load_basics(element_dict: StandardDict) -> tuple[str, str, bool, str, dict[str, bool]]:
+        name = element_dict[NAME]
+        description = element_dict[DESCRIPTION]
+        optional = element_dict[OPTIONAL]
+        parent = element_dict[PARENT]
+        project_phases = element_dict.get(PROJECT_PHASES)
+        pahse_name_list = project.get_project_phase_list()
 
-    def load_object(object_dict, identifier):
+        if isinstance(project_phases, dict):  # deprecated
+            project_phases = [project_phases.get(phase) or True for phase in pahse_name_list]
+        elif project_phases is None:
+            project_phases = [True for _ in pahse_name_list]
+        elif isinstance(project_phases, list):
+            logging.error(f"ProjectPhase hat falsches Format ({type(project_phases)}) -> set all to True")
+            project_phases = [True for _ in pahse_name_list]
+        project_phase_dict = {name: project_phases[index] for index, name in enumerate(pahse_name_list)}
+        return name, description, optional, parent, project_phase_dict
+
+    def load_object(object_dict: ObjectDict, identifier: str) -> None:
         name, description, optional, parent, project_phases = load_basics(object_dict)
-        ifc_mapping = object_dict[json_constants.IFC_MAPPINGS]
+        ifc_mapping = object_dict[IFC_MAPPINGS]
         if isinstance(ifc_mapping, list):
             ifc_mapping = set(ifc_mapping)
 
-        abbreviation = object_dict.get(json_constants.ABBREVIATION)
+        abbreviation = object_dict.get(ABBREVIATION)
 
         obj = classes.Object(name=name, ident_attrib=None, uuid=identifier, ifc_mapping=ifc_mapping,
                              description=description, optional=optional, abbreviation=abbreviation, project=project,
                              project_phases=project_phases)
-        property_sets_dict = object_dict[json_constants.PROPERTY_SETS]
+        property_sets_dict = object_dict[PROPERTY_SETS]
         for ident, pset_dict in property_sets_dict.items():
             load_pset(pset_dict, ident, obj)
-        ident_attrib_id = object_dict[json_constants.IDENT_ATTRIBUTE]
+        ident_attrib_id = object_dict[IDENT_ATTRIBUTE]
         ident_attrib = classes.get_element_by_uuid(ident_attrib_id)
         obj.ident_attrib = ident_attrib
         parent_dict[obj] = parent
 
-    def load_pset(pset_dict: dict, identifier: str, obj: classes.Object | None) -> None:
+    def load_pset(pset_dict: PropertySetDict, identifier: str, obj: classes.Object | None) -> None:
         name, description, optional, parent, project_phases = load_basics(pset_dict)
         pset = classes.PropertySet(name=name, obj=obj, uuid=identifier, description=description, optional=optional,
                                    project=project, project_phases=project_phases)
-        attributes_dict = pset_dict[json_constants.ATTRIBUTES]
+        attributes_dict = pset_dict[ATTRIBUTES]
         for ident, attribute_dict in attributes_dict.items():
             load_attribute(attribute_dict, ident, pset)
         parent_dict[pset] = parent
 
     def load_attribute(attribute_dict: dict, identifier: str, property_set: classes.PropertySet) -> None:
         name, description, optional, parent, project_phases = load_basics(attribute_dict)
-        value = attribute_dict[json_constants.VALUE]
-        value_type = attribute_dict[json_constants.VALUE_TYPE]
-        data_type = attribute_dict[json_constants.DATA_TYPE]
-        child_inherits_value = attribute_dict[json_constants.CHILD_INHERITS_VALUE]
-        revit_mapping = attribute_dict[json_constants.REVIT_MAPPING]
+        value = attribute_dict[VALUE]
+        value_type = attribute_dict[VALUE_TYPE]
+        data_type = attribute_dict[DATA_TYPE]
+        child_inherits_value = attribute_dict[CHILD_INHERITS_VALUE]
+        revit_mapping = attribute_dict[REVIT_MAPPING]
         attribute = classes.Attribute(property_set=property_set, name=name, value=value, value_type=value_type,
                                       data_type=data_type,
                                       child_inherits_values=child_inherits_value, uuid=identifier,
@@ -227,20 +287,12 @@ def import_json(project: classes.Project, path: str):
                                       project=project, project_phases=project_phases)
         parent_dict[attribute] = parent
 
-    def load_dict(dict_name: str) -> dict | None:
-        return_dict = main_dict.get(dict_name)
-        if return_dict is None:
-            logging.error(f"loading Error: {dict_name} doesn't exist!")
-            return {}
-        return return_dict
-
     def load_parents():
-        def find_parent(element):
-            print(f"gesucht: {element.name}")
-            for test_el,uuid in parent_dict.items():
-                if type(test_el) != type(element):
+        def find_parent(element: ClassTypes):
+            for test_el, identifier in parent_dict.items():
+                if type(test_el) is not type(element):
                     continue
-                if uuid not in uuid_dict:
+                if identifier not in uuid_dict:
                     continue
                 if test_el == element:
                     continue
@@ -250,65 +302,104 @@ def import_json(project: classes.Project, path: str):
                 if test_el.name != element.name:
                     continue
 
-                if isinstance(test_el,classes.Attribute):
+                if isinstance(test_el, classes.Attribute):
                     if test_el.value == element.value:
-                        return uuid
-                        continue
-                return uuid
-
+                        return identifier
+                return identifier
 
         uuid_dict = classes.get_uuid_dict()
-        for element, uuid in parent_dict.items():
-            if uuid is not None:
-                if uuid not in uuid_dict:
-                    uuid = find_parent(element)
-                    print(f"neue uuid: {uuid}")
-                if uuid is None:
-                    continue
-                uuid_dict[uuid].add_child(element)
+        for entity, uuid in parent_dict.items():
+            if uuid is None:
+                continue
+            if uuid not in uuid_dict:
+                uuid = find_parent(entity)
+            if uuid is None:
+                continue
+            uuid_dict[uuid].add_child(entity)
 
     def load_aggregation(aggregation_dict: dict, identifier: str, ):
         name, description, optional, parent, project_phases = load_basics(aggregation_dict)
-        object_uuid = aggregation_dict[json_constants.OBJECT]
+        object_uuid = aggregation_dict[OBJECT]
         obj = classes.get_element_by_uuid(object_uuid)
-        parent_connection = aggregation_dict[json_constants.CONNECTION]
+        parent_connection = aggregation_dict[CONNECTION]
         aggregation = classes.Aggregation(obj, parent_connection, identifier, description, optional, project_phases)
         aggregation_parent_dict[aggregation] = (parent, parent_connection)
 
     def build_aggregation_structure():
         for aggregation, (uuid, connection_type) in aggregation_parent_dict.items():
             parent = classes.get_element_by_uuid(uuid)
-            if parent is not None:
-                parent.add_child(aggregation, connection_type)
+            if parent is None:
+                continue
+            parent.add_child(aggregation, connection_type)
 
-    def fill_missing_project_phases():
-        phases = project.get_project_phase_list()
-        for item in project.get_all_hirarchy_items():
-            phase_dict = item.get_project_phase_dict()
-            for phase in phases:
-                if phase not in phase_dict:
-                    item.add_project_phase(phase, True)
+    def check_dict(d: dict | None, d_name: str) -> bool:
+        if d is None:
+            logging.error(f"loading Error: {d_name} doesn't exist!")
+            return True
+        return False
 
-    project_dict = main_dict.get(json_constants.PROJECT)
-    if project_dict is None:
-        logging.warning(f"{json_constants.PROJECT}-dict doesn't exist unable to load Author, Name and Version")
+    if not os.path.isfile(path):
+        return
+    parent_dict: dict[ClassTypes, str] = {}
+    aggregation_parent_dict: dict[classes.Aggregation, tuple[str, int]] = dict()
+
+    with open(path, "r") as file:
+        main_dict: MainDict = json.load(file)
+
+    if main_dict.get(PROJECT) is None:
+        logging.warning(f"{PROJECT}-dict doesn't exist unable to load Author, Name and Version")
     else:
-        load_project_data(project_dict)
+        load_project_data(main_dict.get(PROJECT))
 
-    predefined_psets_dict = load_dict(json_constants.PREDEFINED_PSETS)
+    predef_pset_dict = main_dict.get(PREDEFINED_PSETS)
+    predef_pset_dict = dict() if check_dict(predef_pset_dict, PREDEFINED_PSETS) else predef_pset_dict
 
-    for ident, pset_dict in predefined_psets_dict.items():
-        load_pset(pset_dict, ident, None)
+    for uuid_ident, entity_dict in predef_pset_dict.items():
+        load_pset(entity_dict, uuid_ident, None)
 
-    objects_dict = load_dict(json_constants.OBJECTS)
-    for ident, object_dict in objects_dict.items():
-        load_object(object_dict, ident)
+    objects_dict: dict[str, ObjectDict] = main_dict.get(OBJECTS)
+    objects_dict = dict() if check_dict(objects_dict, OBJECTS) else objects_dict
 
-    aggregations_dict = load_dict(json_constants.AGGREGATIONS)
-    for ident, aggreg_dict in aggregations_dict.items():
-        load_aggregation(aggreg_dict, ident)
+    for uuid_ident, entity_dict in objects_dict.items():
+        load_object(entity_dict, uuid_ident)
+
+    aggregations_dict: dict[str, AggregationDict] = main_dict.get(AGGREGATIONS)
+    aggregations_dict = dict() if check_dict(aggregations_dict, AGGREGATIONS) else aggregations_dict
+    for uuid_ident, entity_dict in aggregations_dict.items():
+        load_aggregation(entity_dict, uuid_ident)
 
     load_parents()
     build_aggregation_structure()
-    fill_missing_project_phases()
     return main_dict
+
+
+DESCRIPTION = "description"
+OPTIONAL = "optional"
+CURRENT_PR0JECT_PHASE = "current_project_phase"
+PROJECT_PHASES = "ProjectPhases"
+AGGREGATION_PSET = "AggregationPsetName"
+AGGREGATION_ATTRIBUTE = "AggregationAttributeName"
+PREDEFINED_PSETS = "PredefinedPropertySets"
+PROPERTY_SETS = "PropertySets"
+IDENT_ATTRIBUTE = "ident_attribute"
+ATTRIBUTES = "Attributes"
+OBJECT = "Object"
+OBJECTS = "Objects"
+AGGREGATIONS = "Aggregations"
+NAME = "name"
+PARENT = "parent"
+DATA_TYPE = "data_type"
+VALUE_TYPE = "value_type"
+CHILD_INHERITS_VALUE = "child_inherits_value"
+PROJECT = "Project"
+VERSION = "version"
+AUTHOR = "author"
+X_POS = "x_pos"
+Y_POS = "y_pos"
+CONNECTION = "connection"
+IFC_MAPPINGS = "IfcMappings"
+IFC_MAPPING = "IfcMapping"
+ABBREVIATION = "abbreviation"
+REVIT_MAPPING = "revit_mapping"
+VALUE = "Value"
+IGNORE_PSET = "IFC"

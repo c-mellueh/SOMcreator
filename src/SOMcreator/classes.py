@@ -520,7 +520,7 @@ class Object(Hirarchy):
             return True
 
     @property
-    def ident_attrib(self) -> Attribute:
+    def ident_attrib(self) -> Attribute|str:
         return self._ident_attrib
 
     @ident_attrib.setter
@@ -528,7 +528,7 @@ class Object(Hirarchy):
         self._ident_attrib = value
 
     def get_all_property_sets(self) -> list[PropertySet]:
-        """returns all Propertysets even if they dont fit the current Project Phase"""
+        """returns all Propertysets even if they don't fit the current Project Phase"""
         return self._property_sets
 
     @property
@@ -847,11 +847,11 @@ class Attribute(Hirarchy):
             self._value = new_value
 
     @property
-    def value_type(self) -> int:
+    def value_type(self) -> str:
         return self._value_type
 
     @value_type.setter
-    def value_type(self, value: int):
+    def value_type(self, value: str):
 
         if not self.is_child:
             self._value_type = value
