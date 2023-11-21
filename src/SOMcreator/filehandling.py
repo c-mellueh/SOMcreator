@@ -225,6 +225,9 @@ def import_json(project: classes.Project, path: str):
             project.current_project_phase = project.get_project_phase_list()[0]
 
     def load_basics(element_dict: StandardDict) -> tuple[str, str, bool, str, dict[str, bool]]:
+        def get_value(d: dict, p: str) -> bool:
+            return d.get(p) if d.get(p) is not None else True
+
         name = element_dict[NAME]
         description = element_dict[DESCRIPTION]
         optional = element_dict[OPTIONAL]
@@ -233,7 +236,8 @@ def import_json(project: classes.Project, path: str):
         phase_name_list = project.get_project_phase_list()
 
         if isinstance(project_phases, dict):  # deprecated
-            project_phases = [project_phases.get(phase) or True for phase in pahse_name_list]
+            project_phases = [get_value(project_phases, phase) for phase in phase_name_list]
+
         elif project_phases is None:
             project_phases = [True for _ in phase_name_list]
 
