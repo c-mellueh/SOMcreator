@@ -55,6 +55,9 @@ class Project(object):
         self._project_phases = ["Standard"]
         self.change_log = list()
 
+    def get_predefined_psets(self) -> set[PropertySet]:
+        return {pset for pset in PropertySet if pset.is_predefined}
+
     def get_main_attribute(self) -> (str, str):
         ident_attributes = dict()
         ident_psets = dict()
@@ -367,7 +370,8 @@ class Hirarchy(object, metaclass=IterRegistry):
         child.parent = self
 
     def remove_child(self, child: PropertySet | Object | Attribute | Aggregation | Hirarchy) -> None:
-        self._children.remove(child)
+        if child in self._children:
+            self._children.remove(child)
 
     def delete(self, recursive: bool = False) -> None:
         logging.info(f"Delete {self.__class__.__name__} {self.name} (recursive: {recursive})")
@@ -666,7 +670,8 @@ class PropertySet(Hirarchy):
 
         super(PropertySet, self).delete()
         [attrib.delete(recursive) for attrib in self.attributes if attrib]
-        self.object.remove_property_set(self)
+        if self.object is not None:
+            self.object.remove_property_set(self)
 
     @property
     def project(self) -> Project | None:
@@ -773,7 +778,7 @@ class Attribute(Hirarchy):
             return self.name < other
 
     def __copy__(self) -> Attribute:
-        new_attrib = Attribute(property_set=self.property_set, name=self.name, value=cp.copy(self.value),
+        new_attrib = Attribute(property_set=None, name=self.name, value=cp.copy(self.value),
                                value_type=cp.copy(self.value_type),
                                data_type=cp.copy(self.data_type), child_inherits_values=self.child_inherits_values,
                                uuid=str(uuid4()),
@@ -783,6 +788,12 @@ class Attribute(Hirarchy):
         if self.parent is not None:
             self.parent.add_child(new_attrib)
         return new_attrib
+
+    def get_all_parents(self) -> list[Attribute]:
+        parent = self.parent
+        if parent is None:
+            return []
+        return parent.get_all_parents() + [parent]
 
     @property
     def project(self) -> Project | None:
