@@ -156,9 +156,9 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
 
     def create_container(xml_container, node: AnyNode):
         new_xml_container = _handle_container(xml_container, node.obj.name)
-        if export_type == "JS":
+        if export_type == JS_EXPORT:
             create_js_object(new_xml_container, parent_node)
-        elif export_type == "CSV":
+        elif export_type ==TABLE_EXPORT:
             create_table_object(new_xml_container, parent_node)
         for child_node in sorted(node.children, key=lambda x: x.id):
             _handle_tree_structure(author, required_data_dict, new_xml_container, child_node, template, xml_object_dict,
@@ -205,7 +205,7 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
 
 
 def _csv_value_in_list(attribute: classes.Attribute):
-    return " ".join(str(val) for val in attribute.value)
+    return " ".join(f'"{str(val)}"' for val in attribute.value)
 
 
 def _csv_check_range(attribute: classes.Attribute) -> str:
@@ -244,7 +244,7 @@ def _handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.At
         if attribute.value_type == value_constants.FORMAT:
             pattern = " || ".join(attribute.value)
         elif attribute.value_type == value_constants.LIST:
-            pattern = " ".join(attribute.value)
+            pattern = " ".join([f'"{v}"' for v in attribute.value])
 
     elif attribute.data_type == value_constants.XS_BOOL:
         pattern = "*"
@@ -401,17 +401,30 @@ def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet
             file.write(line + "\n")
 
 
+def build_full_data_dict(proj: classes.Project) -> dict[
+                        classes.Object, dict[classes.PropertySet, list[classes.Attribute]]]:
+    d = dict()
+    for obj in proj.objects:
+        d[obj] = dict()
+        for pset in obj.property_sets:
+            d[obj][pset] = list()
+            for attribute in pset.attributes:
+                d[obj][pset].append(attribute)
+    return d
+
+
 def _handle_attribute_rule(attribute: classes.Attribute) -> str:
     if attribute.value_type == value_constants.RANGE:
-        return ";".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
+        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
                          f"Pruefung"])
 
     if not attribute.value:
-        return ";".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
+        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
                          f"Pruefung"])
 
-    return ";".join(
-        ["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, " ".join(str(attribute.value)),
+    return "; ".join(
+        ["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type,
+         " ".join([f'"{str(v)}"' for v in attribute.value]),
          f"Pruefung"])
 
 
