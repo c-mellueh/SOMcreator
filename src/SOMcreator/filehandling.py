@@ -244,6 +244,8 @@ def import_json(project: classes.Project, path: str):
         elif not isinstance(project_phases, list):
             logging.error(f"ProjectPhase hat falsches Format ({type(project_phases)}) -> set all to True")
             project_phases = [True for _ in phase_name_list]
+
+        project_phases = [pp if isinstance(pp,bool) else True for pp in project_phases]
         project_phase_dict = {name: project_phases[index] for index, name in enumerate(phase_name_list)}
         return name, description, optional, parent, project_phase_dict
 
