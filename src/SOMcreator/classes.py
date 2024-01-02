@@ -873,7 +873,7 @@ class Attribute(Hirarchy):
     @property
     def data_type(self) -> str:
         """
-        "xs:string"; "xs:double"; "xs:boolean"; XS_INT = "xs:int"
+        IfcSimpleValue -> https://standards.buildingsmart.org/IFC/RELEASE/IFC4/ADD2_TC1/HTML/
         :return:
         """
 
