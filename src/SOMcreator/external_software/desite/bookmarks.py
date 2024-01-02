@@ -4,7 +4,7 @@ import jinja2
 from lxml import etree
 from ...Template import HOME_DIR, BOOKMARK_TEMPLATE
 from ... import classes
-from . import OLD_DATA_DICT_REVERSED
+from ...constants.value_constants import XS_DATATYPE_DICT
 
 
 def _handle_bookmark_list(proj: classes.Project) -> etree.ElementTree:
@@ -28,7 +28,7 @@ def _handle_bookmark_list(proj: classes.Project) -> etree.ElementTree:
         if attribute is None:
             continue
         xml_col = etree.SubElement(xml_bookmark, "col")
-        data_type = OLD_DATA_DICT_REVERSED[attribute.data_type]
+        data_type = XS_DATATYPE_DICT[attribute.data_type]
         text = f"{attribute.property_set.name}:{attribute.name}##{data_type}"
         xml_col.set("v", text)
 
@@ -36,7 +36,7 @@ def _handle_bookmark_list(proj: classes.Project) -> etree.ElementTree:
             for attribute in property_set.attributes:
                 if attribute != obj.ident_attrib:
                     xml_col = etree.SubElement(xml_bookmark, "col")
-                    data_type = OLD_DATA_DICT_REVERSED[attribute.data_type]
+                    data_type = XS_DATATYPE_DICT[attribute.data_type]
                     text = f"{property_set.name}:{attribute.name}##{data_type}"
                     xml_col.set("v", text)
     return etree.ElementTree(xml_bookmarks)
@@ -47,7 +47,7 @@ def _get_attribute_dict(proj: classes.Project) -> dict[str, str]:
     for obj in proj.objects:
         for property_set in obj.property_sets:
             for attribute in property_set.attributes:
-                attribute_dict[f"{property_set.name}:{attribute.name}"] = OLD_DATA_DICT_REVERSED[attribute.data_type]
+                attribute_dict[f"{property_set.name}:{attribute.name}"] = XS_DATATYPE_DICT[attribute.data_type]
 
     return attribute_dict
 

@@ -7,8 +7,7 @@ from lxml import etree
 from ...constants import value_constants
 
 output_date_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-OLD_DATA_DICT_REVERSED = {value: key for [key, value] in value_constants.OLD_DATATYPE_DICT.items()}
-OLD_DATA_DICT_REVERSED[value_constants.XS_DOUBLE] = "xs:double"
+
 
 
 def handle_header(author: str, export_format: str) -> Element:
