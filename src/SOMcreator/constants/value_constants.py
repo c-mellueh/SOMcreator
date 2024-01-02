@@ -30,3 +30,15 @@ XS_DATATYPE_DICT = {
     XS_BOOL: "xs:boolean",
     XS_INT: "xs:int"
 }
+
+REVIT_TEMPLATE_DATATYPE_DICT = {XS_INT: "Integer",
+                                XS_STRING: "Label",
+                                XS_DOUBLE: "Real",
+                                XS_BOOL: "Boolean",
+                                DATATYPE_DATE: "Date"}
+
+REVIT_SHARED_PARAM_DATATYPE_DICT = {XS_INT: "INTEGER",
+                                XS_STRING: "TEXT",
+                                XS_DOUBLE: "NUMBER",
+                                XS_BOOL: "YESNO",
+                                DATATYPE_DATE: "DATE"}
