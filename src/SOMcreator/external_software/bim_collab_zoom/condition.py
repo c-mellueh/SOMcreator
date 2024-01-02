@@ -40,8 +40,7 @@ LOGICUNKNOW = "LogicalUnknown"
 LOGICAL_DEF = "LogicalIsDefined"
 LOGICAL_UNDEF = "LogicalIsNotDefined"
 
-DATATYPE_DICT = {value_constants.XS_STRING: STRING,
-                 value_constants.XS_BOOL: BOOL,
-                 value_constants.XS_INT: DOUBLE,
-                 value_constants.XS_DOUBLE: DOUBLE,
-                 value_constants.XS_LONG: DOUBLE}
+DATATYPE_DICT = {value_constants.LABEL: STRING,
+                 value_constants.BOOLEAN: BOOL,
+                 value_constants.INTEGER: DOUBLE,
+                 value_constants.REAL: DOUBLE,}

@@ -233,7 +233,7 @@ def _handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.At
         xml_attrib.set("pattern", "*")
         return
     pattern = "*"
-    if attribute.data_type in (value_constants.XS_INT, value_constants.XS_LONG, value_constants.XS_DOUBLE):
+    if attribute.data_type in (value_constants.INTEGER, value_constants.REAL):
         if attribute.value_type == value_constants.LIST:
             pattern = _csv_value_in_list(attribute)
         elif attribute.value_type == value_constants.RANGE:
@@ -242,13 +242,13 @@ def _handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.At
             logging.error(f"No Function defined for {attribute.name} ({attribute.value_type} x {attribute.data_type}")
             pattern = "*"
 
-    elif attribute.data_type == value_constants.XS_STRING:
+    elif attribute.data_type == value_constants.LABEL:
         if attribute.value_type == value_constants.FORMAT:
             pattern = " || ".join(attribute.value)
         elif attribute.value_type == value_constants.LIST:
             pattern = " ".join([f'"{v}"' for v in attribute.value])
 
-    elif attribute.data_type == value_constants.XS_BOOL:
+    elif attribute.data_type == value_constants.BOOLEAN:
         pattern = "*"
     else:
         logging.error(f"No Function defined for {attribute.name} ({attribute.value_type} x {attribute.data_type}")

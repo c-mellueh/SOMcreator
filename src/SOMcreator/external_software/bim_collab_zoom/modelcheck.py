@@ -42,7 +42,7 @@ def _write_smartview(property_set: classes.PropertySet, attribute_list: list[cla
     for attribute in attribute_list:
         if attribute == ident_attrib:
             continue
-        if attribute.data_type in (value_constants.XS_INT, value_constants.XS_LONG, value_constants.XS_DOUBLE):
+        if attribute.data_type in (value_constants.INTEGER, value_constants.REAL):
             if not attribute.value:
                 rule_list += rule.add_if_not_existing(attribute.name, pset_name, c.DATATYPE_DICT[attribute.data_type])
             elif attribute.value_type == value_constants.LIST:
@@ -52,7 +52,7 @@ def _write_smartview(property_set: classes.PropertySet, attribute_list: list[cla
             else:
                 logging.error(f"No Function defined for {attribute.name} ({attribute.value_type}x{attribute.data_type}")
 
-        elif attribute.data_type == value_constants.XS_STRING:
+        elif attribute.data_type == value_constants.LABEL:
             if attribute.value_type == value_constants.FORMAT:
                 rule_list += rule.add_if_not_existing(attribute.name, pset_name, c.DATATYPE_DICT[attribute.data_type])
                 continue
@@ -62,7 +62,7 @@ def _write_smartview(property_set: classes.PropertySet, attribute_list: list[cla
             else:
                 rule_list += rule.add_if_not_existing(attribute.name, pset_name, c.DATATYPE_DICT[attribute.data_type])
 
-        elif attribute.data_type == value_constants.XS_BOOL:
+        elif attribute.data_type == value_constants.BOOLEAN:
             rule_list += rule.add_if_not_existing(attribute.name, pset_name, c.DATATYPE_DICT[attribute.data_type])
         else:
             logging.error(f"No Function defined for {attribute.name} ({attribute.value_type}x{attribute.data_type}")
