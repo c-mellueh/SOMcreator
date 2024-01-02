@@ -24,6 +24,8 @@ def _handle_bookmark_list(proj: classes.Project) -> etree.ElementTree:
         xml_col.set("v", "Type##xs:string")
 
         attribute = obj.ident_attrib
+        if attribute is None:
+            continue
         xml_col = etree.SubElement(xml_bookmark, "col")
         text = f"{attribute.property_set.name}:{attribute.name}##{attribute.data_type}"
         xml_col.set("v", text)
