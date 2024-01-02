@@ -13,6 +13,7 @@ from . import condition as c
 from . import constants as const
 from . import rule
 
+REQUIRED_DATA_DICT = dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]]
 
 def _write_header(xml_header: etree.Element) -> None:
     etree.SubElement(xml_header, const.VERSION).text = "6"
@@ -88,7 +89,7 @@ def _write_smartviewset(obj: classes.Object, pset_dict: dict[classes.PropertySet
     return smartview_set
 
 
-def _write_smartviewsets(required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
+def _write_smartviewsets(required_data_dict:REQUIRED_DATA_DICT,
                          author: str) -> etree.Element:
     smartviewsets = etree.Element(const.SMVSETS)
     for obj, pset_dict in required_data_dict.items():
@@ -98,7 +99,7 @@ def _write_smartviewsets(required_data_dict: dict[classes.Object, dict[classes.P
     return smartviewsets
 
 
-def export(required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
+def export(required_data_dict: REQUIRED_DATA_DICT,
            save_path: os.PathLike | str, author="") -> None:
     header = etree.Element(const.BCSVF)
     _write_header(header)
@@ -107,3 +108,11 @@ def export(required_data_dict: dict[classes.Object, dict[classes.PropertySet, li
     with open(save_path, "wb") as file:
         file.write(etree.tostring(header, pretty_print=True))
         file.write(etree.tostring(svs, pretty_print=True))
+
+def build_full_required_data_dict(project:classes.Project)-> REQUIRED_DATA_DICT:
+    required_data = dict()
+    for obj in list(project.objects):
+        required_data[obj] = dict()
+        for pset in obj.property_sets:
+            required_data[obj][pset] = [attribute for attribute in pset.attributes]
+    return required_data
