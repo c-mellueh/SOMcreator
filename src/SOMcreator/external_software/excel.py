@@ -371,6 +371,7 @@ def _build_aggregations() -> None:
 
 def open_file(path: str, ws_name: str) -> None:
     # TODO: add request for Identification Attribute
+    logging.warning(f"Opening Excel files is deprecated and wont have newer features")
     with tempfile.TemporaryDirectory() as tmpdirname:
         new_path = os.path.join(tmpdirname, "excel.xlsx")
         shutil.copy2(path, new_path)
