@@ -1,14 +1,15 @@
+from .ifc_datatypes import LABEL,REAL,BOOLEAN,DATE,INTEGER
 VALUE = "Value"
 FORMAT = "Format"
 RANGE = "Range"
 LIST = "List"
-XS_STRING = "IfcLabel"
-XS_DOUBLE = "IfcReal"
-XS_BOOL = "IfcBoolean"
-XS_LONG = "IfcReal"
-DATATYPE_DATE = "IfcDate"
-DATATYPE_NUMBER = "IfcReal"
-XS_INT = "IfcInteger"
+XS_STRING = LABEL
+XS_DOUBLE = REAL
+XS_BOOL = BOOLEAN
+XS_LONG = REAL
+DATATYPE_DATE = DATE
+DATATYPE_NUMBER = REAL
+XS_INT = INTEGER
 RANGE_STRINGS = ["Range", "range", "RANGE"]
 VALUE_TYPE_LOOKUP = {VALUE: "Value", FORMAT: "Format", RANGE: "Range", LIST: "List",}
 AGGREGATION = 1
