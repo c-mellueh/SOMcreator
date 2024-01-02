@@ -4,6 +4,7 @@ import json
 import os
 from src.SOMcreator import classes
 from src.SOMcreator.constants import json_constants, value_constants
+from . import OLD_DATA_DICT_REVERSED
 
 
 def _iter_attributes(property_set: classes.PropertySet, pset_dict: dict) -> None:
@@ -11,7 +12,7 @@ def _iter_attributes(property_set: classes.PropertySet, pset_dict: dict) -> None
         pset_dict[attribute.name] = dict()
         attribute_dict = pset_dict[attribute.name]
 
-        attribute_dict[json_constants.DATA_TYPE] = attribute.data_type
+        attribute_dict[json_constants.DATA_TYPE] = OLD_DATA_DICT_REVERSED[attribute.data_type]
         if not attribute.value:
             attribute_dict[json_constants.VALUE_TYPE] = value_constants.EXISTS
         else:

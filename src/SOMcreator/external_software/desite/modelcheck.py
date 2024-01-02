@@ -10,7 +10,7 @@ import jinja2
 from anytree import AnyNode
 from lxml import etree
 
-from .desite import handle_header, output_date_time
+from . import handle_header, output_date_time, OLD_DATA_DICT_REVERSED
 from ..bim_collab_zoom.rule import merge_list
 from ... import __version__
 from ... import classes, constants, Template
@@ -158,7 +158,7 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
         new_xml_container = _handle_container(xml_container, node.obj.name)
         if export_type == JS_EXPORT:
             create_js_object(new_xml_container, parent_node)
-        elif export_type ==TABLE_EXPORT:
+        elif export_type == TABLE_EXPORT:
             create_table_object(new_xml_container, parent_node)
         for child_node in sorted(node.children, key=lambda x: x.id):
             _handle_tree_structure(author, required_data_dict, new_xml_container, child_node, template, xml_object_dict,
@@ -174,7 +174,7 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
         xml_rule_script = _handle_rule_script(xml_attribute_rule_list, name=obj.name)
         xml_code = _handle_code(xml_rule_script)
         cdata_code = template.render(pset_dict=pset_dict, constants=value_constants,
-                                     ignore_pset=json_constants.IGNORE_PSET)
+                                     ignore_pset=json_constants.IGNORE_PSET, xs_dict=OLD_DATA_DICT_REVERSED)
         xml_code.text = cdata_code
         _handle_rule(xml_checkrun, "UniquePattern")
 
@@ -219,7 +219,8 @@ def _csv_check_range(attribute: classes.Attribute) -> str:
 def _build_basics_rule_item(xml_parent: etree.Element, attribute: classes.Attribute) -> etree.Element:
     xml_attrib = etree.SubElement(xml_parent, "ruleItem")
     xml_attrib.set("ID", attribute.uuid)
-    xml_attrib.set("name", f"{attribute.property_set.name}:{attribute.name}##{attribute.data_type}")
+    data_type = OLD_DATA_DICT_REVERSED[attribute.data_type]
+    xml_attrib.set("name", f"{attribute.property_set.name}:{attribute.name}##{data_type}")
     xml_attrib.set("type", "simple")
     return xml_attrib
 
@@ -237,7 +238,7 @@ def _handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.At
         elif attribute.value_type == value_constants.RANGE:
             pattern = _csv_check_range(attribute)
         else:
-            logging.error(f"No Function defined for {attribute.name} ({attribute.value_type}x{attribute.data_type}")
+            logging.error(f"No Function defined for {attribute.name} ({attribute.value_type} x {attribute.data_type}")
             pattern = "*"
 
     elif attribute.data_type == value_constants.XS_STRING:
@@ -249,7 +250,7 @@ def _handle_rule_item_attribute(xml_parent: etree.Element, attribute: classes.At
     elif attribute.data_type == value_constants.XS_BOOL:
         pattern = "*"
     else:
-        logging.error(f"No Function defined for {attribute.name} ({attribute.value_type}x{attribute.data_type}")
+        logging.error(f"No Function defined for {attribute.name} ({attribute.value_type} x {attribute.data_type}")
 
     xml_attrib.set("pattern", pattern)
 
@@ -337,6 +338,62 @@ def _handle_property_section(xml_qa_export: Element) -> None:
     etree.SubElement(repository, "propertySection")
 
 
+def _handle_untested(xml_attribute_rule_list: etree.Element, main_pset: str, main_attribute: str):
+    template = _handle_template(Template.UNTESTED)
+    rule_script = etree.SubElement(xml_attribute_rule_list, "ruleScript")
+    name = "untested"
+    rule_script.set("name", name)
+    rule_script.set("active", "true")
+    rule_script.set("resume", "false")
+    code = etree.SubElement(rule_script, "code")
+    code.text = str(template.render(pset_name=main_pset, attribute_name=main_attribute))
+
+
+def _handle_attribute_rule(attribute: classes.Attribute) -> str:
+    data_type = OLD_DATA_DICT_REVERSED[attribute.data_type]
+    if attribute.value_type == value_constants.RANGE:
+        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", data_type, "*",
+                          f"Pruefung"])
+
+    if not attribute.value:
+        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", data_type, "*",
+                          f"Pruefung"])
+
+    return "; ".join(
+        ["R", "", f"{attribute.property_set.name}:{attribute.name}", data_type,
+         " ".join([f'"{str(v)}"' for v in attribute.value]),
+         f"Pruefung"])
+
+
+def _fast_object_check(main_pset: str, main_attrib: str, author: str, required_data_dict: dict,
+                       base_xml_container: Element,
+                       template: jinja2.Template) -> dict[Element, None]:
+    xml_object_dict: dict[Element, classes.Object] = dict()
+    xml_checkrun = _handle_checkrun(base_xml_container, "Main Check", author)
+    xml_rule = _handle_rule(xml_checkrun, "Attributes")
+    xml_attribute_rule_list = _handle_attribute_rule_list(xml_rule)
+    xml_rule_script = _handle_rule_script(xml_attribute_rule_list, name="Main Check")
+    xml_code = _handle_code(xml_rule_script)
+    cdata_code = template.render(object_dict=required_data_dict, main_pset=main_pset, main_attrib=main_attrib,
+                                 constants=value_constants,
+                                 ignore_pset=json_constants.IGNORE_PSET, xs_dict=OLD_DATA_DICT_REVERSED)
+    xml_code.text = cdata_code
+    _handle_rule(xml_checkrun, "UniquePattern")
+    return {xml_checkrun: None}
+
+
+def build_full_data_dict(proj: classes.Project) -> dict[
+    classes.Object, dict[classes.PropertySet, list[classes.Attribute]]]:
+    d = dict()
+    for obj in proj.objects:
+        d[obj] = dict()
+        for pset in obj.property_sets:
+            d[obj][pset] = list()
+            for attribute in pset.attributes:
+                d[obj][pset].append(attribute)
+    return d
+
+
 def export(project: classes.Project,
            required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
            path: str, main_pset: str, main_attribute: str, project_tree: AnyNode = None,
@@ -369,17 +426,6 @@ def export(project: classes.Project,
         tree.write(f, xml_declaration=True, pretty_print=True, encoding="utf-8", method="xml")
 
 
-def _handle_untested(xml_attribute_rule_list: etree.Element, main_pset: str, main_attribute: str):
-    template = _handle_template(Template.UNTESTED)
-    rule_script = etree.SubElement(xml_attribute_rule_list, "ruleScript")
-    name = "untested"
-    rule_script.set("name", name)
-    rule_script.set("active", "true")
-    rule_script.set("resume", "false")
-    code = etree.SubElement(rule_script, "code")
-    code.text = str(template.render(pset_name=main_pset, attribute_name=main_attribute))
-
-
 def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]], path):
     lines = list()
     lines.append(";".join(["#", f"Created by SOMcreator v{__version__}"]))
@@ -389,8 +435,9 @@ def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet
         if obj.ident_attrib is None:
             continue
         ident_attrib = f"{obj.ident_attrib.property_set.name}:{obj.ident_attrib.name}"
+        data_type = OLD_DATA_DICT_REVERSED[obj.ident_attrib.data_type]
         lines.append(";".join(
-            ["C", ident_attrib, "", obj.ident_attrib.data_type, obj.ident_value, f"Nach Objekt {obj.name} filtern"]))
+            ["C", ident_attrib, "", data_type, obj.ident_value, f"Nach Objekt {obj.name} filtern"]))
 
         for pset, attribute_list in pset_dict.items():
             for attribute in attribute_list:
@@ -399,50 +446,6 @@ def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet
     with open(path, "w") as file:
         for line in lines:
             file.write(line + "\n")
-
-
-def build_full_data_dict(proj: classes.Project) -> dict[
-                        classes.Object, dict[classes.PropertySet, list[classes.Attribute]]]:
-    d = dict()
-    for obj in proj.objects:
-        d[obj] = dict()
-        for pset in obj.property_sets:
-            d[obj][pset] = list()
-            for attribute in pset.attributes:
-                d[obj][pset].append(attribute)
-    return d
-
-
-def _handle_attribute_rule(attribute: classes.Attribute) -> str:
-    if attribute.value_type == value_constants.RANGE:
-        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
-                         f"Pruefung"])
-
-    if not attribute.value:
-        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type, "*",
-                         f"Pruefung"])
-
-    return "; ".join(
-        ["R", "", f"{attribute.property_set.name}:{attribute.name}", attribute.data_type,
-         " ".join([f'"{str(v)}"' for v in attribute.value]),
-         f"Pruefung"])
-
-
-def _fast_object_check(main_pset: str, main_attrib: str, author: str, required_data_dict: dict,
-                       base_xml_container: Element,
-                       template: jinja2.Template) -> dict[Element, None]:
-    xml_object_dict: dict[Element, classes.Object] = dict()
-    xml_checkrun = _handle_checkrun(base_xml_container, "Main Check", author)
-    xml_rule = _handle_rule(xml_checkrun, "Attributes")
-    xml_attribute_rule_list = _handle_attribute_rule_list(xml_rule)
-    xml_rule_script = _handle_rule_script(xml_attribute_rule_list, name="Main Check")
-    xml_code = _handle_code(xml_rule_script)
-    cdata_code = template.render(object_dict=required_data_dict, main_pset=main_pset, main_attrib=main_attrib,
-                                 constants=value_constants,
-                                 ignore_pset=json_constants.IGNORE_PSET)
-    xml_code.text = cdata_code
-    _handle_rule(xml_checkrun, "UniquePattern")
-    return {xml_checkrun: None}
 
 
 def fast_check(project: classes.Project, main_pset: str, main_attrib: str,

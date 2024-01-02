@@ -32,7 +32,7 @@ case "{{ obj.ident_value}}":
         {%for attribute in attribute_list%}
 
         attributeName= '{{attribute.name}}';
-        returnFormat= '{{attribute.data_type}}';
+        returnFormat= '{{xs_dict[attribute.data_type]}}';
         existingData = pset_dict[propertySetName][attributeName]
         {%if attribute.value_type == constants.LIST%}
         var list = [
