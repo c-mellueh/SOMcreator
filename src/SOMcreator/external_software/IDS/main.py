@@ -6,9 +6,8 @@ from datetime import date
 from lxml.etree import Element, ElementTree, SubElement
 
 from . import ids_xsd, xml_xsd
-from constants import ifc_datatypes
 from ... import classes
-from ...constants import value_constants
+from ...constants import value_constants, ifc_datatypes
 
 NSMAP = {None: ids_xsd.DEFAULT_NS[1:-1],
          "xs": xml_xsd.NS_XS[1:-1],

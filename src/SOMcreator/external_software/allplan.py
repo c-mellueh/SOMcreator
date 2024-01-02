@@ -24,9 +24,9 @@ INTERNAL_COLUMNS = ["Objekt", "AttributAllplan", "AttributIfc", "Pset", "Type"]
 
 def create_mapping(project: classes.Project, path: str, allplan_mapping_name: str):
     def transform_datatype(data_type: str) -> str:
-        if data_type == value_constants.XS_INT:
+        if data_type == value_constants.INTEGER:
             return "Ganzzahl"
-        if data_type == value_constants.XS_DOUBLE:
+        if data_type == value_constants.REAL:
             return "Fließkommazahl"
         return "Text"
 
@@ -52,7 +52,7 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
             row = 2 + row_index
             worksheet.cell(row=row, column=1, value=name)
             worksheet.cell(row=row, column=2, value=transform_datatype(data_type))
-            if data_type == value_constants.XS_BOOL:
+            if data_type == value_constants.BOOLEAN:
                 worksheet.cell(row=row, column=7, value="CheckBox")
         return attribute_dict
 
@@ -80,11 +80,11 @@ def create_mapping(project: classes.Project, path: str, allplan_mapping_name: st
 
     def create_internal_mapping(attribute_dict: dict[str, str], worksheet: Worksheet):
         def transform_type(t: str) -> str:
-            if t == value_constants.XS_INT:
+            if t == value_constants.INTEGER:
                 return "IfcInteger"
-            if t == value_constants.XS_DOUBLE:
+            if t == value_constants.REAL:
                 return "IfcReal"
-            if t == value_constants.XS_BOOL:
+            if t == value_constants.BOOLEAN:
                 return "IfcBoolean"
             return "IfcLabel"
 

@@ -169,19 +169,19 @@ class ExcelBlock(metaclass=ExcelIterator):
         def transform_value_types(attribute_name: str, value: str) -> (str, bool):
             if value is not None:
                 if value.lower() in ["string", "str"]:
-                    data_type = value_constants.XS_STRING
+                    data_type = value_constants.LABEL
                 elif value.lower() in ["double"]:
-                    data_type = value_constants.XS_DOUBLE
+                    data_type = value_constants.REAL
                 elif value.lower() in ["boolean", "bool"]:
-                    data_type = value_constants.XS_BOOL
+                    data_type = value_constants.BOOLEAN
                 elif value.lower() in ["int", "integer"]:
-                    data_type = value_constants.XS_INT
+                    data_type = value_constants.INTEGER
                 else:
-                    text = f"{self.name}: Datatype '{value}' of Attribute {attribute_name} can't be interpreted. Use {value_constants.XS_STRING} instead "
+                    text = f"{self.name}: Datatype '{value}' of Attribute {attribute_name} can't be interpreted. Use {value_constants.LABEL} instead "
                     logging.info(text)
-                    data_type = value_constants.XS_STRING
+                    data_type = value_constants.LABEL
             else:
-                data_type = value_constants.XS_STRING
+                data_type = value_constants.LABEL
 
             return data_type
 
