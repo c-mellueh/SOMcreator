@@ -8,6 +8,7 @@ import jinja2
 
 from . import classes
 from .Template import MAPPING_TEMPLATE, HOME_DIR
+from .constants.value_constants import OLD_DATATYPE_DICT
 
 
 class StandardDict(TypedDict):
@@ -245,7 +246,7 @@ def import_json(project: classes.Project, path: str):
             logging.error(f"ProjectPhase hat falsches Format ({type(project_phases)}) -> set all to True")
             project_phases = [True for _ in phase_name_list]
 
-        project_phases = [pp if isinstance(pp,bool) else True for pp in project_phases]
+        project_phases = [pp if isinstance(pp, bool) else True for pp in project_phases]
         project_phase_dict = {name: project_phases[index] for index, name in enumerate(phase_name_list)}
         return name, description, optional, parent, project_phase_dict
 
@@ -282,6 +283,11 @@ def import_json(project: classes.Project, path: str):
         value = attribute_dict[VALUE]
         value_type = attribute_dict[VALUE_TYPE]
         data_type = attribute_dict[DATA_TYPE]
+
+        # compatibility for Datatype import that uses XML-Datatypes such as xs:string
+        if data_type in OLD_DATATYPE_DICT:
+            data_type = OLD_DATATYPE_DICT[data_type]
+
         child_inherits_value = attribute_dict[CHILD_INHERITS_VALUE]
         revit_mapping = attribute_dict[REVIT_MAPPING]
         attribute = classes.Attribute(property_set=property_set, name=name, value=value, value_type=value_type,
