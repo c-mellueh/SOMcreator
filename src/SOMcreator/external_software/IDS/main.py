@@ -5,7 +5,8 @@ from datetime import date
 
 from lxml.etree import Element, ElementTree, SubElement
 
-from . import ids_xsd, ifc_datatypes, xml_xsd
+from . import ids_xsd, xml_xsd
+from constants import ifc_datatypes
 from ... import classes
 from ...constants import value_constants
 
@@ -56,14 +57,7 @@ def _build_requirements(property_set_dict: dict[classes.PropertySet, list[classe
 
 def _build_attribute_requirement(attribute: classes.Attribute, xml_parent: Element) -> None:
     xml_property = SubElement(xml_parent, ids_xsd.PROPERTY, nsmap=NSMAP)
-
-    datatype_mapping = {value_constants.XS_STRING: ifc_datatypes.LABEL,
-                        value_constants.XS_LONG: ifc_datatypes.REAL,
-                        value_constants.XS_DOUBLE: ifc_datatypes.REAL,
-                        value_constants.XS_INT: ifc_datatypes.INTEGER,
-                        value_constants.XS_BOOL: ifc_datatypes.BOOLEAN}
-
-    xml_property.set(ids_xsd.ATTR_DATATYPE, datatype_mapping[attribute.data_type])
+    xml_property.set(ids_xsd.ATTR_DATATYPE, value_constants.XS_DATATYPE_DICT[attribute.data_type])
     if attribute.optional:
         xml_property.set(xml_xsd.MINOCCURS, "0")
     else:
@@ -79,7 +73,7 @@ def _build_attribute_requirement(attribute: classes.Attribute, xml_parent: Eleme
     if not attribute.value:
         return
     xml_restriction = SubElement(xml_value, xml_xsd.RESTRICTION, nsmap=NSMAP)
-    xml_restriction.set(xml_xsd.BASE, attribute.data_type)
+    xml_restriction.set(xml_xsd.BASE, value_constants.XS_DATATYPE_DICT[attribute.data_type])
 
     if attribute.value_type == value_constants.LIST:
         for value in attribute.value:

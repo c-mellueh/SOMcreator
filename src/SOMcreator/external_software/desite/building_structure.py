@@ -5,8 +5,7 @@ from lxml import etree
 
 from ... import classes
 from ...constants import value_constants
-from .desite import handle_header
-
+from . import handle_header
 
 def _handle_section(id_dict, aggregation: classes.Aggregation, xml_item: Element) -> None:
     xml_child = etree.SubElement(xml_item, "section")
@@ -59,7 +58,7 @@ def _handle_property_type_section(xml_repo) -> dict[str, int]:
             xml_ptype = etree.SubElement(xml_property_type_section, "ptype")
             xml_ptype.set("key", str(i))
             xml_ptype.set("name", attribute_text)
-            xml_ptype.set("datatype", attribute.data_type)
+            xml_ptype.set("datatype", value_constants.XS_DATATYPE_DICT[attribute.data_type])
             xml_ptype.set("unit", "")
             xml_ptype.set("inh", "false")
             attribute_dict[attribute_text] = i

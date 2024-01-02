@@ -743,7 +743,7 @@ class Attribute(Hirarchy):
     _registry: set[Attribute] = set()
 
     def __init__(self, property_set: PropertySet | None, name: str, value: list, value_type: str,
-                 data_type: str = "xs:string",
+                 data_type: str = value_constants.XS_STRING,
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
                  project_phases: None | dict[str, bool] = None):
@@ -873,7 +873,7 @@ class Attribute(Hirarchy):
     @property
     def data_type(self) -> str:
         """
-        "xs:string"; "xs:double"; "xs:boolean"; XS_INT = "xs:int"
+        IfcSimpleValue -> https://standards.buildingsmart.org/IFC/RELEASE/IFC4/ADD2_TC1/HTML/
         :return:
         """
 

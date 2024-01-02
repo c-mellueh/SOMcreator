@@ -8,25 +8,21 @@ from ..constants import value_constants
 if TYPE_CHECKING:
     pass
 
+def _transform_datatype(data_type: str,data_type_dict:dict[str,str]) -> str:
+
+    if not data_type in data_type_dict:
+        return "ERROR"
+    return data_type_dict[data_type]
 
 def export_ifc_template(path: str, pset_dict: dict[str, (list[classes.Attribute], set[str])]) -> None:
-    def transform_datatype(data_type: str) -> str:
-        if data_type == value_constants.XS_INT:
-            return "Integer"
-        if data_type == value_constants.XS_STRING:
-            return "Label"
-        if data_type == value_constants.XS_DOUBLE:
-            return "Real"
-        if data_type == value_constants.XS_BOOL:
-            return "Boolean"
-        return "ERROR"
+
 
     with open(path, "w") as file:
         property_set: classes.PropertySet
         for pset_name, (attrib_list, ifc_mapping) in sorted(pset_dict.items()):
             file.write(f"PropertySet:   {pset_name} I  {','.join(ifc_mapping)} \n")
             for attribute in attrib_list:
-                revit_datatype = transform_datatype(attribute.data_type)
+                revit_datatype = _transform_datatype(attribute.data_type,value_constants.REVIT_TEMPLATE_DATATYPE_DICT)
                 file.write(f"   {attribute.name}    {revit_datatype}\n")
             file.write("\n")
 
@@ -61,16 +57,7 @@ class SP_Item(metaclass=IterItem):
             f"PARAM	{self.attribute.uuid}	{self.attribute.name}	{self.datatype()}		{self.pset_number}	1		1\n")
 
     def datatype(self) -> str:
-        data_type = self.attribute.data_type
-        if data_type == value_constants.XS_INT:
-            return "INTEGER"
-        if data_type == value_constants.XS_STRING:
-            return "TEXT"
-        if data_type == value_constants.XS_DOUBLE:
-            return "NUMBER"
-        if data_type == value_constants.XS_BOOL:
-            return "YESNO"
-        return "ERROR"
+        return _transform_datatype(self.attribute.data_type,value_constants.REVIT_SHARED_PARAM_DATATYPE_DICT)
 
 
 def export_shared_parameters(path: str, pset_dict: dict[str, (list[classes.Attribute], set[str])]) -> None:

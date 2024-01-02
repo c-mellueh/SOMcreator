@@ -4,7 +4,7 @@ from lxml import etree, builder
 from openpyxl import load_workbook
 
 from .. import classes
-
+from .. constants.value_constants import XS_DATATYPE_DICT
 
 def create_mapping(excel_path: str, folder_path: str, project: classes.Project) -> None:
     def create_xml(name: str, obj: classes.Object):
@@ -35,7 +35,7 @@ def create_mapping(excel_path: str, folder_path: str, project: classes.Project) 
                         xml_value.text = attribut.value[0]
                     else:
                         xml_value.text = ""
-                    xml_value.set(f"{{{xsi}}}type", attribut.data_type.replace("xs:", "xsd:"))
+                    xml_value.set(f"{{{xsi}}}type", XS_DATATYPE_DICT[attribut.data_type].replace("xs:", "xsd:"))
 
         element_maker = builder.ElementMaker(nsmap={"xsd": xsd, "xsi": xsi})
         xml_role = element_maker.Role()
