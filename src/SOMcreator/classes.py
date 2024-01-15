@@ -52,7 +52,9 @@ class Project(object):
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
         self._current_project_phase = "Standard"
-        self._project_phases = ["Standard"]
+        self._current_use_case = "Standard"
+        self._project_phases = [ self._current_project_phase]
+        self._use_cases = [self._current_use_case]
         self.change_log = list()
 
     def get_predefined_psets(self) -> set[PropertySet]:
@@ -98,12 +100,20 @@ class Project(object):
     def get_project_phase_list(self) -> list[str]:
         return list(self._project_phases)
 
+    def get_use_case_list(self) -> list[str]:
+        return list(self._use_cases)
+
     def add_project_phase(self, project_phase_name: str, state: bool = True) -> None:
         if project_phase_name not in self._project_phases:
             self._project_phases.append(project_phase_name)
             for item in self.get_all_hirarchy_items():
                 item.add_project_phase(project_phase_name, state)
 
+    def add_use_case(self, use_case_name: str, state: bool = True) -> None:
+        if use_case_name not in self._use_cases:
+            self._use_cases.append(use_case_name)
+            for item in self.get_all_hirarchy_items():
+                item.add_use_case(use_case_name, state)
     def rename_project_phase(self, old_name: str, new_name: str) -> None:
         if old_name not in self._project_phases:
             logging.warning(f"Projektphase {old_name} nicht vorhanden")
@@ -122,6 +132,24 @@ class Project(object):
             item.add_project_phase(project_phase_name=new_name, state=value)
             item.remove_project_phase(old_name)
 
+    def rename_use_case(self, old_name: str, new_name: str) -> None:
+        if old_name not in self._use_cases:
+            logging.warning(f"UseCase {old_name} nicht vorhanden")
+            return
+        if old_name == self.current_use_case:
+            self._current_use_case = new_name
+
+        index = self._use_cases.index(old_name)
+        self._use_cases[index] = new_name
+
+        for item in self.get_all_hirarchy_items():
+            if old_name not in item.get_use_case_dict():
+                logging.warning(f"Use-case {old_name} nicht vorhanden")
+                continue
+            value = item.get_use_case_state(old_name)
+            item.add_use_case(use_case_name=new_name, state=value)
+            item.remove_use_case(old_name)
+
     def remove_project_phase(self, project_phase_name: str) -> None:
         if project_phase_name not in self._project_phases:
             return
@@ -130,12 +158,27 @@ class Project(object):
         for item in self.get_all_hirarchy_items():
             item.remove_project_phase(project_phase_name)
 
+    def remove_use_case(self, use_case_name: str) -> None:
+        if use_case_name not in self._use_cases:
+            return
+        self._use_cases.remove(use_case_name)
+
+        for item in self.get_all_hirarchy_items():
+            item.remove_use_case(use_case_name)
+
     @property
     def current_project_phase(self) -> str:
         if self._current_project_phase in self._project_phases:
             return self._current_project_phase
         else:
-            logging.info(f"{self._current_project_phase} not in {self._project_phases}")
+            logging.error(f"{self._current_project_phase} not in {self._project_phases}")
+
+    @property
+    def current_use_case(self) -> str:
+        if self._current_use_case in self._use_cases:
+            return self._current_use_case
+        else:
+            logging.error(f"{self._current_project_phase} not in {self._project_phases}")
 
     @current_project_phase.setter
     def current_project_phase(self, value: str) -> None:
@@ -143,6 +186,13 @@ class Project(object):
             self._current_project_phase = value
         else:
             logging.error(f"'{value}' nicht in Leistungsphasen-verzeichnis enthalten")
+
+    @current_use_case.setter
+    def current_use_case(self, value: str) -> None:
+        if value in self._use_cases:
+            self._current_use_case = value
+        else:
+            logging.error(f"'{value}' nicht in Anwendungsfall-verzeichnis enthalten")
 
     def create_mapping_script(self, pset_name: str, path: str) -> None:
         filehandling.create_mapping_script(self, pset_name, path)
@@ -196,19 +246,34 @@ class Project(object):
     def get_all_objects() -> Iterator[Object]:
         return iter(Object)
 
+    def filter_by_project_phase(func):
+        def inner(self):
+            res = func()
+            return list(filter(lambda obj: obj.get_project_phase_state(self.current_project_phase), res))
+        return inner
+
+    def filter_by_use_case(func):
+        def inner(self):
+            res = func()
+            return list(filter(lambda obj: obj.get_use_case_state(self.current_use_case), res))
+        return inner
     @property
-    def objects(self) -> Iterator[Object]:
+    @filter_by_project_phase
+    @filter_by_use_case
+    def objects(self) -> list[Object]:
         objects: list[Object] = list(Object)
-        return filter(lambda obj: obj.get_project_phase_state(self.current_project_phase), objects)
+        return objects
 
     @staticmethod
     def get_all_aggregations() -> Iterator[Aggregation]:
         return iter(Aggregation)
 
     @property
-    def aggregations(self) -> Iterator[Aggregation]:
+    @filter_by_project_phase
+    @filter_by_use_case
+    def aggregations(self) -> list[Aggregation]:
         aggregations = list(Aggregation)
-        return filter(lambda aggreg: aggreg.object.get_project_phase_state(self.current_project_phase), aggregations)
+        return aggregations
 
     def tree(self) -> AnyNode:
         def create_childen(node: AnyNode):
@@ -228,26 +293,25 @@ class Project(object):
             create_childen(n)
         return base
 
-    @staticmethod
-    def get_predefined_psets() -> set[PropertySet]:
-        return set(pset for pset in PropertySet if pset.object is None)
-
 
 class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
                  project: Project | None = None,
-                 project_phase_dict: dict[str, bool] | None = None) -> None:
+                 project_phase_dict: dict[str, bool] | None = None, use_case_dict: dict[str, bool] = None) -> None:
         self._project = project
         if project_phase_dict is None:
             project_phase_dict = dict()
+        if use_case_dict is None:
+            use_case_dict = dict()
         self._project_phase_dict: dict[str, bool] = project_phase_dict
+        self._use_case_dict: dict[str, bool] = use_case_dict
         self._parent = None
         self._children = set()
         self._name = name
         self._mapping_dict = {
             value_constants.SHARED_PARAMETERS: True,
-            json_constants.IFC_MAPPING: True
+            json_constants.IFC_MAPPING:        True
         }
         self._description = ""
         if description is not None:
@@ -271,24 +335,47 @@ class Hirarchy(object, metaclass=IterRegistry):
     def get_project_phase_dict(self) -> dict[str, bool]:
         return dict(self._project_phase_dict)
 
+    def get_use_case_dict(self) -> dict[str,bool]:
+        return dict(self._use_case_dict)
+
     def get_project_phase_state(self, project_phase_name: str) -> bool:
         state = self._project_phase_dict.get(project_phase_name)
         if state is None:
             return True
         return state
 
+
+
+    def get_use_case_state(self, use_case_name: str) -> bool:
+        state = self._use_case_dict.get(use_case_name)
+        state = True if state is None else state
+        return state
+
     def remove_project_phase(self, project_phase_name: str) -> None:
         if project_phase_name in self._project_phase_dict:
             self._project_phase_dict.pop(project_phase_name)
 
+    def remove_use_case(self, use_case_name: str) -> None:
+        if use_case_name in self._project_phase_dict:
+            self._project_phase_dict.pop(use_case_name)
+
     def add_project_phase(self, project_phase_name: str, state: bool) -> None:
         self._project_phase_dict[project_phase_name] = state
+
+    def add_use_case(self,use_case_name:str, state:bool) -> None:
+        self._use_case_dict[use_case_name] = state
 
     def set_project_phase(self, project_phase_name: str, state: bool) -> None:
         if project_phase_name in self._project_phase_dict:
             self._project_phase_dict[project_phase_name] = state
         else:
             self.add_project_phase(project_phase_name, state)
+
+    def set_use_case(self, use_case_name: str, state: bool) -> None:
+        if use_case_name in self._use_case_dict:
+            self._use_case_dict[use_case_name] = state
+        else:
+            self.add_use_case(use_case_name, state)
 
     @property
     def optional_wo_hirarchy(self) -> bool:
@@ -397,8 +484,8 @@ class Object(Hirarchy):
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
                  optional: None | bool = None, abbreviation: None | str = None, project: None | Project = None,
-                 project_phases: None | dict[str, bool] = None) -> None:
-        super(Object, self).__init__(name, description, optional, project, project_phases)
+                 project_phases: None | dict[str, bool] = None, use_cases:None|dict[str,bool] = None) -> None:
+        super(Object, self).__init__(name, description, optional, project, project_phases,use_cases)
         self._registry.add(self)
         self._property_sets: list[PropertySet] = list()
         self._ident_attrib = ident_attrib
@@ -444,7 +531,7 @@ class Object(Hirarchy):
         new_object = Object(name=self.name, ident_attrib=new_ident_attribute, uuid=str(uuid4()),
                             ifc_mapping=self.ifc_mapping,
                             description=self.description, optional=self.optional, abbreviation=self.abbreviation,
-                            project=self.project, project_phases=self.get_project_phase_dict())
+                            project=self.project, project_phases=self.get_project_phase_dict(),use_cases=self.get_use_case_dict())
 
         for pset in new_property_sets:
             new_object.add_property_set(pset)
@@ -544,6 +631,7 @@ class Object(Hirarchy):
         else:
             property_sets = {pset for pset in self._property_sets if
                              pset.get_project_phase_state(self.project.current_project_phase)}
+            property_sets = {p for p in property_sets if p.get_use_case_state(self.project.current_use_case)}
         return sorted(property_sets, key=lambda x: x.name)
 
     # override name setter because of intheritance
@@ -600,8 +688,8 @@ class PropertySet(Hirarchy):
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, project: None | Project = None,
-                 project_phases: None | dict[str, bool] = None) -> None:
-        super(PropertySet, self).__init__(name, description, optional, project, project_phases)
+                 project_phases: None | dict[str, bool] = None, use_cases:None| dict[str,bool] = None) -> None:
+        super(PropertySet, self).__init__(name, description, optional, project, project_phases,use_cases)
         self._attributes = set()
         self._object = None
         if obj is not None:
@@ -623,7 +711,7 @@ class PropertySet(Hirarchy):
     def __copy__(self) -> PropertySet:
         new_pset = PropertySet(name=self.name, obj=None, uuid=str(uuid4()), description=self.description,
                                optional=self.optional, project=self.project,
-                               project_phases=self.get_project_phase_dict())
+                               project_phases=self.get_project_phase_dict(),use_cases= self.get_use_case_dict())
 
         for attribute in self.attributes:
             new_attribute = cp.copy(attribute)
@@ -636,10 +724,7 @@ class PropertySet(Hirarchy):
 
     @property
     def is_predefined(self) -> bool:
-        if self.object is None:
-            return True
-        else:
-            return False
+        return self.object is None
 
     @property
     def parent(self) -> PropertySet:
@@ -697,6 +782,8 @@ class PropertySet(Hirarchy):
         if self.project is not None:
             attributes = {attribute for attribute in attributes if
                           attribute.get_project_phase_state(self.project.current_project_phase)}
+            attributes = {attribute for attribute in attributes if
+                          attribute.get_use_case_state(self.project.current_use_case)}
         return attributes
 
     @attributes.setter
@@ -746,9 +833,9 @@ class Attribute(Hirarchy):
                  data_type: str = value_constants.LABEL,
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
-                 project_phases: None | dict[str, bool] = None):
+                 project_phases: None | dict[str, bool] = None,use_cases: None | dict[str, bool] = None):
 
-        super(Attribute, self).__init__(name, description, optional, project, project_phases)
+        super(Attribute, self).__init__(name, description, optional, project, project_phases,use_cases)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -783,7 +870,7 @@ class Attribute(Hirarchy):
                                data_type=cp.copy(self.data_type), child_inherits_values=self.child_inherits_values,
                                uuid=str(uuid4()),
                                description=self.description, optional=self.optional, revit_mapping=self.revit_name,
-                               project=self.project, project_phases=self.get_project_phase_dict())
+                               project=self.project, project_phases=self.get_project_phase_dict(),use_cases=self.get_use_case_dict())
 
         if self.parent is not None:
             self.parent.add_child(new_attrib)
@@ -931,8 +1018,8 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=value_constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None, project_phases: None | dict[str, bool] = None):
-        super(Aggregation, self).__init__(obj.name, description, optional, project_phases)
+                 optional: None | bool = None, project_phases: None | dict[str, bool] = None,use_cases: None | dict[str, bool] = None):
+        super(Aggregation, self).__init__(obj.name, description, optional, project_phases,use_cases)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
