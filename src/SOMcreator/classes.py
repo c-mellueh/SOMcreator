@@ -53,7 +53,7 @@ class Project(object):
         self.aggregation_pset = ""
         self._current_project_phase = "Standard"
         self._current_use_case = "Standard"
-        self._project_phases = [ self._current_project_phase]
+        self._project_phases = [self._current_project_phase]
         self._use_cases = [self._current_use_case]
         self.change_log = list()
 
@@ -114,6 +114,7 @@ class Project(object):
             self._use_cases.append(use_case_name)
             for item in self.get_all_hirarchy_items():
                 item.add_use_case(use_case_name, state)
+
     def rename_project_phase(self, old_name: str, new_name: str) -> None:
         if old_name not in self._project_phases:
             logging.warning(f"Projektphase {old_name} nicht vorhanden")
@@ -247,16 +248,21 @@ class Project(object):
         return iter(Object)
 
     def filter_by_project_phase(func):
+        """decorator function that filters list output of function by project phase"""
         def inner(self):
-            res = func()
+            res = func(self)
             return list(filter(lambda obj: obj.get_project_phase_state(self.current_project_phase), res))
+
         return inner
 
     def filter_by_use_case(func):
+        """decorator function that filters list output of function by use-case"""
         def inner(self):
-            res = func()
+            res = func(self)
             return list(filter(lambda obj: obj.get_use_case_state(self.current_use_case), res))
+
         return inner
+
     @property
     @filter_by_project_phase
     @filter_by_use_case
@@ -335,7 +341,7 @@ class Hirarchy(object, metaclass=IterRegistry):
     def get_project_phase_dict(self) -> dict[str, bool]:
         return dict(self._project_phase_dict)
 
-    def get_use_case_dict(self) -> dict[str,bool]:
+    def get_use_case_dict(self) -> dict[str, bool]:
         return dict(self._use_case_dict)
 
     def get_project_phase_state(self, project_phase_name: str) -> bool:
@@ -343,8 +349,6 @@ class Hirarchy(object, metaclass=IterRegistry):
         if state is None:
             return True
         return state
-
-
 
     def get_use_case_state(self, use_case_name: str) -> bool:
         state = self._use_case_dict.get(use_case_name)
@@ -362,7 +366,7 @@ class Hirarchy(object, metaclass=IterRegistry):
     def add_project_phase(self, project_phase_name: str, state: bool) -> None:
         self._project_phase_dict[project_phase_name] = state
 
-    def add_use_case(self,use_case_name:str, state:bool) -> None:
+    def add_use_case(self, use_case_name: str, state: bool) -> None:
         self._use_case_dict[use_case_name] = state
 
     def set_project_phase(self, project_phase_name: str, state: bool) -> None:
@@ -484,8 +488,8 @@ class Object(Hirarchy):
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
                  optional: None | bool = None, abbreviation: None | str = None, project: None | Project = None,
-                 project_phases: None | dict[str, bool] = None, use_cases:None|dict[str,bool] = None) -> None:
-        super(Object, self).__init__(name, description, optional, project, project_phases,use_cases)
+                 project_phases: None | dict[str, bool] = None, use_cases: None | dict[str, bool] = None) -> None:
+        super(Object, self).__init__(name, description, optional, project, project_phases, use_cases)
         self._registry.add(self)
         self._property_sets: list[PropertySet] = list()
         self._ident_attrib = ident_attrib
@@ -531,7 +535,8 @@ class Object(Hirarchy):
         new_object = Object(name=self.name, ident_attrib=new_ident_attribute, uuid=str(uuid4()),
                             ifc_mapping=self.ifc_mapping,
                             description=self.description, optional=self.optional, abbreviation=self.abbreviation,
-                            project=self.project, project_phases=self.get_project_phase_dict(),use_cases=self.get_use_case_dict())
+                            project=self.project, project_phases=self.get_project_phase_dict(),
+                            use_cases=self.get_use_case_dict())
 
         for pset in new_property_sets:
             new_object.add_property_set(pset)
@@ -688,8 +693,8 @@ class PropertySet(Hirarchy):
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, project: None | Project = None,
-                 project_phases: None | dict[str, bool] = None, use_cases:None| dict[str,bool] = None) -> None:
-        super(PropertySet, self).__init__(name, description, optional, project, project_phases,use_cases)
+                 project_phases: None | dict[str, bool] = None, use_cases: None | dict[str, bool] = None) -> None:
+        super(PropertySet, self).__init__(name, description, optional, project, project_phases, use_cases)
         self._attributes = set()
         self._object = None
         if obj is not None:
@@ -711,7 +716,7 @@ class PropertySet(Hirarchy):
     def __copy__(self) -> PropertySet:
         new_pset = PropertySet(name=self.name, obj=None, uuid=str(uuid4()), description=self.description,
                                optional=self.optional, project=self.project,
-                               project_phases=self.get_project_phase_dict(),use_cases= self.get_use_case_dict())
+                               project_phases=self.get_project_phase_dict(), use_cases=self.get_use_case_dict())
 
         for attribute in self.attributes:
             new_attribute = cp.copy(attribute)
@@ -833,9 +838,9 @@ class Attribute(Hirarchy):
                  data_type: str = value_constants.LABEL,
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
-                 project_phases: None | dict[str, bool] = None,use_cases: None | dict[str, bool] = None):
+                 project_phases: None | dict[str, bool] = None, use_cases: None | dict[str, bool] = None):
 
-        super(Attribute, self).__init__(name, description, optional, project, project_phases,use_cases)
+        super(Attribute, self).__init__(name, description, optional, project, project_phases, use_cases)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -870,7 +875,8 @@ class Attribute(Hirarchy):
                                data_type=cp.copy(self.data_type), child_inherits_values=self.child_inherits_values,
                                uuid=str(uuid4()),
                                description=self.description, optional=self.optional, revit_mapping=self.revit_name,
-                               project=self.project, project_phases=self.get_project_phase_dict(),use_cases=self.get_use_case_dict())
+                               project=self.project, project_phases=self.get_project_phase_dict(),
+                               use_cases=self.get_use_case_dict())
 
         if self.parent is not None:
             self.parent.add_child(new_attrib)
@@ -1018,8 +1024,9 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=value_constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None, project_phases: None | dict[str, bool] = None,use_cases: None | dict[str, bool] = None):
-        super(Aggregation, self).__init__(obj.name, description, optional, project_phases,use_cases)
+                 optional: None | bool = None, project_phases: None | dict[str, bool] = None,
+                 use_cases: None | dict[str, bool] = None):
+        super(Aggregation, self).__init__(obj.name, description, optional, project_phases, use_cases)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
