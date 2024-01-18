@@ -179,7 +179,7 @@ class Project(object):
         if self._current_use_case in self._use_cases:
             return self._current_use_case
         else:
-            logging.error(f"{self._current_project_phase} not in {self._project_phases}")
+            logging.error(f"{self._current_use_case} not in {self._use_cases}")
 
     @current_project_phase.setter
     def current_project_phase(self, value: str) -> None:
@@ -454,6 +454,9 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     @property
     def children(self) -> set[PropertySet | Object | Attribute | Aggregation]:
+        return self._children
+
+    def get_all_children(self):
         return self._children
 
     def add_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
