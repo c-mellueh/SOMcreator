@@ -275,7 +275,7 @@ def import_json(project: classes.Project, path: str):
         project_phase_dict = {name: project_phases[index] for index, name in enumerate(phase_name_list)}
 
         use_cases = [pp if isinstance(pp, bool) else True for pp in use_cases]
-        use_case_dict = {name: use_cases[index] for index, name in enumerate(use_cases)}
+        use_case_dict = {name: use_cases[index] for index, name in enumerate(use_case_name_list)}
 
         return name, description, optional, parent, project_phase_dict,use_case_dict
 
