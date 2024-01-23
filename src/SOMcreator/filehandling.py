@@ -19,6 +19,7 @@ class StandardDict(TypedDict):
     parent: str | None
     description: str
 
+
 class MainDict(TypedDict):
     Project: ProjectDict
     PredefinedPropertySets: dict[str, PropertySetDict]
@@ -34,7 +35,7 @@ class ProjectDict(TypedDict):
     AggregationAttributeName: str
     AggregationPsetName: str
     current_project_phase: str
-    current_use_case:str
+    current_use_case: str
     ProjectPhases: list[str]
     UseCases: list[str]
 
@@ -241,7 +242,8 @@ def import_json(project: classes.Project, path: str):
             project.current_use_case = current_use_case
         elif project.get_use_case_list():
             project.current_use_case = project.get_use_case_list()[0]
-    def load_basics(element_dict: StandardDict) -> tuple[str, str, bool, str, dict[str, bool],dict[str, bool]]:
+
+    def load_basics(element_dict: StandardDict) -> tuple[str, str, bool, str, dict[str, bool], dict[str, bool]]:
         def get_value(d: dict, p: str) -> bool:
             return d.get(p) if d.get(p) is not None else True
 
@@ -270,17 +272,16 @@ def import_json(project: classes.Project, path: str):
             logging.error(f"UseCases hat falsches Format ({type(use_cases)}) -> set all to True")
             use_cases = [True for _ in use_case_name_list]
 
-
         project_phases = [pp if isinstance(pp, bool) else True for pp in project_phases]
         project_phase_dict = {name: project_phases[index] for index, name in enumerate(phase_name_list)}
 
         use_cases = [pp if isinstance(pp, bool) else True for pp in use_cases]
         use_case_dict = {name: use_cases[index] for index, name in enumerate(use_case_name_list)}
 
-        return name, description, optional, parent, project_phase_dict,use_case_dict
+        return name, description, optional, parent, project_phase_dict, use_case_dict
 
     def load_object(object_dict: ObjectDict, identifier: str) -> None:
-        name, description, optional, parent, project_phases,use_cases = load_basics(object_dict)
+        name, description, optional, parent, project_phases, use_cases = load_basics(object_dict)
         ifc_mapping = object_dict[IFC_MAPPINGS]
         if isinstance(ifc_mapping, list):
             ifc_mapping = set(ifc_mapping)
@@ -289,7 +290,7 @@ def import_json(project: classes.Project, path: str):
 
         obj = classes.Object(name=name, ident_attrib=None, uuid=identifier, ifc_mapping=ifc_mapping,
                              description=description, optional=optional, abbreviation=abbreviation, project=project,
-                             project_phases=project_phases, use_cases = use_cases)
+                             project_phases=project_phases, use_cases=use_cases)
         property_sets_dict = object_dict[PROPERTY_SETS]
         for ident, pset_dict in property_sets_dict.items():
             load_pset(pset_dict, ident, obj)
@@ -301,14 +302,14 @@ def import_json(project: classes.Project, path: str):
     def load_pset(pset_dict: PropertySetDict, identifier: str, obj: classes.Object | None) -> None:
         name, description, optional, parent, project_phases, use_cases = load_basics(pset_dict)
         pset = classes.PropertySet(name=name, obj=obj, uuid=identifier, description=description, optional=optional,
-                                   project=project, project_phases=project_phases, use_cases = use_cases)
+                                   project=project, project_phases=project_phases, use_cases=use_cases)
         attributes_dict = pset_dict[ATTRIBUTES]
         for ident, attribute_dict in attributes_dict.items():
             load_attribute(attribute_dict, ident, pset)
         parent_dict[pset] = parent
 
     def load_attribute(attribute_dict: dict, identifier: str, property_set: classes.PropertySet) -> None:
-        name, description, optional, parent, project_phases,use_cases = load_basics(attribute_dict)
+        name, description, optional, parent, project_phases, use_cases = load_basics(attribute_dict)
         value = attribute_dict[VALUE]
         value_type = attribute_dict[VALUE_TYPE]
         data_type = attribute_dict[DATA_TYPE]
@@ -323,7 +324,7 @@ def import_json(project: classes.Project, path: str):
                                       data_type=data_type,
                                       child_inherits_values=child_inherits_value, uuid=identifier,
                                       description=description, optional=optional, revit_mapping=revit_mapping,
-                                      project=project, project_phases=project_phases,use_cases = use_cases)
+                                      project=project, project_phases=project_phases, use_cases=use_cases)
         parent_dict[attribute] = parent
 
     def load_parents():
@@ -357,11 +358,12 @@ def import_json(project: classes.Project, path: str):
             uuid_dict[uuid].add_child(entity)
 
     def load_aggregation(aggregation_dict: dict, identifier: str, ):
-        name, description, optional, parent, project_phases,use_cases = load_basics(aggregation_dict)
+        name, description, optional, parent, project_phases, use_cases = load_basics(aggregation_dict)
         object_uuid = aggregation_dict[OBJECT]
         obj = classes.get_element_by_uuid(object_uuid)
         parent_connection = aggregation_dict[CONNECTION]
-        aggregation = classes.Aggregation(obj, parent_connection, identifier, description, optional, project_phases,use_cases)
+        aggregation = classes.Aggregation(obj=obj, parent_connection= parent_connection, uuid = identifier,description= description, optional=optional, project_phases= project_phases,
+                                          use_cases=use_cases)
         aggregation_parent_dict[aggregation] = (parent, parent_connection)
 
     def build_aggregation_structure():
