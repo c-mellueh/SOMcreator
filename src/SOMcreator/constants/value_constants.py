@@ -9,7 +9,7 @@ RANGE = "Range"
 LIST = "List"
 SHARED_PARAMETERS = "SharedParameters"
 EXISTS = "Exists"
-VALUE_TYPE_LOOKUP = {VALUE: "Value", FORMAT: "Format", RANGE: "Range", LIST: "List", }
+VALUE_TYPE_LOOKUP = { FORMAT: "Format", RANGE: "Range", LIST: "List", } #VALUE: "Value",
 RANGE_STRINGS = ["Range", "range", "RANGE"]
 
 # DATATYPES

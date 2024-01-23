@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import SOMcreator
 import logging
 import os
 from typing import Iterator, Union
@@ -45,6 +45,8 @@ class IterRegistry(type):
 
 class Project(object):
     def __init__(self, name: str = "", author: str | None = None) -> None:
+        SOMcreator.project = Project
+        self._items = set()
         self._name = ""
         self._author = author
         self._version = "1.0.0"
@@ -57,8 +59,31 @@ class Project(object):
         self._use_cases = [self._current_use_case]
         self.change_log = list()
 
+    def add_item(self, item: Hirarchy):
+        self._items.add(item)
+
+    def remove_item(self, item: Hirarchy):
+        if item in self._items:
+            self._items.remove(item)
+
+    # Item Getter Methods
+    def get_all_hirarchy_items(self) -> Iterator[Object, PropertySet, Attribute, Aggregation]:
+        return filter(lambda i: isinstance(i, (Object, PropertySet, Attribute, Aggregation)), self._items)
+
+    def get_all_objects(self) -> Iterator[Object]:
+        return filter(lambda item: isinstance(item, Object), self._items)
+
+    def get_all_property_sets(self) -> Iterator[PropertySet]:
+        return filter(lambda item: isinstance(item, PropertySet), self._items)
+
+    def get_all_attributes(self) -> Iterator[Attribute]:
+        return filter(lambda item: isinstance(item, Attribute), self._items)
+
+    def get_all_aggregations(self) -> Iterator[Aggregation]:
+        return filter(lambda item: isinstance(item, Aggregation), self._items)
+
     def get_predefined_psets(self) -> set[PropertySet]:
-        return {pset for pset in PropertySet if pset.is_predefined}
+        return set(filter(lambda p: p.is_predefined, self.get_all_property_sets()))
 
     def get_main_attribute(self) -> (str, str):
         ident_attributes = dict()
@@ -83,19 +108,62 @@ class Project(object):
             return "", ""
 
     def get_object_by_identifier(self, identifier: str) -> Object | None:
-        return {obj.ident_value: obj for obj in self.objects}.get(identifier)
+        return {obj.ident_value: obj for obj in self.get_all_objects()}.get(identifier)
 
-    def get_all_hirarchy_items(self) -> set[Object, PropertySet, Attribute, Aggregation]:
-        hirarchy_set = set()
+    def create_mapping_script(self, pset_name: str, path: str) -> None:
+        filehandling.create_mapping_script(self, pset_name, path)
+
+    def open(self, path: str | os.PathLike) -> dict:
+        json_dict = filehandling.import_json(self, path)
+        return json_dict
+
+    def save(self, path: str | os.PathLike) -> dict:
+        json_dict = filehandling.export_json(self, path)
+        return json_dict
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        self._name = value
+
+    @property
+    def author(self) -> str:
+        return self._author
+
+    @author.setter
+    def author(self, value: str):
+        self._author = value
+
+    @property
+    def version(self) -> str:
+        return self._version
+
+    @version.setter
+    def version(self, value: str):
+        self._version = value
+
+    def tree(self) -> AnyNode:
+        def create_childen(node: AnyNode):
+            n_obj: Object = node.obj
+            for child in n_obj.children:
+                child_node = AnyNode(name=child.name, id=child.ident_value, obj=child, parent=node)
+                create_childen(child_node)
+
+        base = AnyNode(id=self.name, obj=self)
+        root_objects = list()
         for obj in self.objects:
-            hirarchy_set.add(obj)
-            for aggregation in obj.aggregations:
-                hirarchy_set.add(aggregation)
-            for pset in obj.property_sets:
-                hirarchy_set.add(pset)
-                for attribute in pset.attributes:
-                    hirarchy_set.add(attribute)
-        return hirarchy_set
+            if obj.parent is not None:
+                continue
+            root_objects.append(AnyNode(name=obj.name, id=obj.ident_value, obj=obj, parent=base))
+
+        for n in root_objects:
+            create_childen(n)
+        return base
+
+    # UseCase / ProjectPhase Handling
 
     def get_project_phase_list(self) -> list[str]:
         return list(self._project_phases)
@@ -145,7 +213,7 @@ class Project(object):
 
         for item in self.get_all_hirarchy_items():
             if old_name not in item.get_use_case_dict():
-                logging.warning(f"Use-case {old_name} nicht vorhanden")
+                logging.warning(f"{item}: Use-case {old_name} nicht vorhanden")
                 continue
             value = item.get_use_case_state(old_name)
             item.add_use_case(use_case_name=new_name, state=value)
@@ -195,60 +263,9 @@ class Project(object):
         else:
             logging.error(f"'{value}' nicht in Anwendungsfall-verzeichnis enthalten")
 
-    def create_mapping_script(self, pset_name: str, path: str) -> None:
-        filehandling.create_mapping_script(self, pset_name, path)
-
-    def open(self, path: str | os.PathLike) -> dict:
-        json_dict = filehandling.import_json(self, path)
-        return json_dict
-
-    def save(self, path: str | os.PathLike) -> dict:
-        json_dict = filehandling.export_json(self, path)
-        return json_dict
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, value: str):
-        self._name = value
-
-    @property
-    def author(self) -> str:
-        return self._author
-
-    @author.setter
-    def author(self, value: str):
-        self._author = value
-
-    @property
-    def version(self) -> str:
-        return self._version
-
-    @version.setter
-    def version(self, value: str):
-        self._version = value
-
-    def clear(self):
-        for obj in Object:
-            obj.delete()
-        for pset in PropertySet:
-            pset.delete()
-
-        for attribute in Attribute:
-            attribute.delete()
-        self.name = ""
-        self.author = ""
-        self.version = "1.0.0"
-        self.name = ""
-
-    @staticmethod
-    def get_all_objects() -> Iterator[Object]:
-        return iter(Object)
-
     def filter_by_project_phase(func):
         """decorator function that filters list output of function by project phase"""
+
         def inner(self):
             res = func(self)
             return list(filter(lambda obj: obj.get_project_phase_state(self.current_project_phase), res))
@@ -257,6 +274,7 @@ class Project(object):
 
     def filter_by_use_case(func):
         """decorator function that filters list output of function by use-case"""
+
         def inner(self):
             res = func(self)
             return list(filter(lambda obj: obj.get_use_case_state(self.current_use_case), res))
@@ -266,13 +284,20 @@ class Project(object):
     @property
     @filter_by_project_phase
     @filter_by_use_case
-    def objects(self) -> list[Object]:
-        objects: list[Object] = list(Object)
-        return objects
+    def objects(self) -> Iterator[Object]:
+        return self.get_all_objects()
 
-    @staticmethod
-    def get_all_aggregations() -> Iterator[Aggregation]:
-        return iter(Aggregation)
+    @property
+    @filter_by_project_phase
+    @filter_by_use_case
+    def property_sets(self) -> Iterator[PropertySet]:
+        return self.get_all_property_sets()
+
+    @property
+    @filter_by_project_phase
+    @filter_by_use_case
+    def attributes(self) -> Iterator[Attribute]:
+        return self.get_all_attributes()
 
     @property
     @filter_by_project_phase
@@ -281,31 +306,17 @@ class Project(object):
         aggregations = list(Aggregation)
         return aggregations
 
-    def tree(self) -> AnyNode:
-        def create_childen(node: AnyNode):
-            n_obj: Object = node.obj
-            for child in n_obj.children:
-                child_node = AnyNode(name=child.name, id=child.ident_value, obj=child, parent=node)
-                create_childen(child_node)
-
-        base = AnyNode(id=self.name, obj=self)
-        root_objects = list()
-        for obj in self.objects:
-            if obj.parent is not None:
-                continue
-            root_objects.append(AnyNode(name=obj.name, id=obj.ident_value, obj=obj, parent=base))
-
-        for n in root_objects:
-            create_childen(n)
-        return base
-
 
 class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
                  project: Project | None = None,
                  project_phase_dict: dict[str, bool] | None = None, use_case_dict: dict[str, bool] = None) -> None:
+
+        if project is None:
+            project = SOMcreator.project
         self._project = project
+        project.add_item(self)
         if project_phase_dict is None:
             project_phase_dict = dict()
         if use_case_dict is None:
@@ -327,13 +338,9 @@ class Hirarchy(object, metaclass=IterRegistry):
         if optional is not None:
             self._optional = optional
 
-    def _get_project(self, parent_element: Object | PropertySet) -> Project | None:
-        if self._project is not None:
-            return self._project
-
-        if parent_element is not None:
-            return parent_element.project
-        return None
+    @property
+    def project(self):
+        return self._project
 
     def remove_parent(self) -> None:
         self._parent = None
@@ -482,6 +489,7 @@ class Hirarchy(object, metaclass=IterRegistry):
         else:
             for child in self.children:
                 child.remove_parent()
+        self.project.delete_item(self)
         del self
 
 
@@ -741,6 +749,12 @@ class PropertySet(Hirarchy):
 
     @parent.setter
     def parent(self, parent: PropertySet) -> None:
+        """
+        Use parent.add_child if you want to set the parent
+
+        :param parent:
+        :return:
+        """
         if parent is None:
             self.remove_parent()
             return
@@ -765,10 +779,6 @@ class PropertySet(Hirarchy):
         [attrib.delete(recursive) for attrib in self.attributes if attrib]
         if self.object is not None:
             self.object.remove_property_set(self)
-
-    @property
-    def project(self) -> Project | None:
-        return self._get_project(self.object)
 
     @property
     def object(self) -> Object:
@@ -890,10 +900,6 @@ class Attribute(Hirarchy):
         if parent is None:
             return []
         return parent.get_all_parents() + [parent]
-
-    @property
-    def project(self) -> Project | None:
-        return self._get_project(self.property_set)
 
     @property
     def revit_name(self) -> str:
@@ -1029,7 +1035,8 @@ class Aggregation(Hirarchy):
                  description: None | str = None,
                  optional: None | bool = None, project_phases: None | dict[str, bool] = None,
                  use_cases: None | dict[str, bool] = None):
-        super(Aggregation, self).__init__(obj.name, description, optional, project_phases, use_cases)
+
+        super(Aggregation, self).__init__(obj.name, description, optional, obj.project, project_phases, use_cases)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
