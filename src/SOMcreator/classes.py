@@ -45,7 +45,7 @@ class IterRegistry(type):
 
 class Project(object):
     def __init__(self, name: str = "", author: str | None = None) -> None:
-        SOMcreator.project = Project
+        SOMcreator.project = self
         self._items = set()
         self._name = ""
         self._author = author
