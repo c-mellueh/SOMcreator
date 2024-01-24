@@ -14,6 +14,27 @@ from .constants import value_constants, json_constants
 
 # Add child to Parent leads to reverse
 
+def filter_by_project_phase(func):
+    """decorator function that filters list output of function by project phase"""
+
+    def inner(self):
+        res = func(self)
+        phase = self.current_project_phase if isinstance(self,Project) else self.project.current_project_phase
+        return list(filter(lambda obj: obj.get_project_phase_state(phase), res))
+
+    return inner
+
+
+def filter_by_use_case(func):
+    """decorator function that filters list output of function by use-case"""
+
+    def inner(self):
+        res = func(self)
+        use_case = self.current_use_case if isinstance(self,Project) else self.project.current_use_case
+        return list(filter(lambda obj: obj.get_use_case_state(use_case), res))
+
+    return inner
+
 
 def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
     pset_dict = {pset.uuid: pset for pset in PropertySet}
@@ -263,23 +284,7 @@ class Project(object):
         else:
             logging.error(f"'{value}' nicht in Anwendungsfall-verzeichnis enthalten")
 
-    def filter_by_project_phase(func):
-        """decorator function that filters list output of function by project phase"""
 
-        def inner(self):
-            res = func(self)
-            return list(filter(lambda obj: obj.get_project_phase_state(self.current_project_phase), res))
-
-        return inner
-
-    def filter_by_use_case(func):
-        """decorator function that filters list output of function by use-case"""
-
-        def inner(self):
-            res = func(self)
-            return list(filter(lambda obj: obj.get_use_case_state(self.current_use_case), res))
-
-        return inner
 
     @property
     @filter_by_project_phase
@@ -460,6 +465,8 @@ class Hirarchy(object, metaclass=IterRegistry):
             return False
 
     @property
+    @filter_by_project_phase
+    @filter_by_use_case
     def children(self) -> set[PropertySet | Object | Attribute | Aggregation]:
         return self._children
 
@@ -467,7 +474,7 @@ class Hirarchy(object, metaclass=IterRegistry):
         return self._children
 
     def add_child(self, child: PropertySet | Object | Attribute | Aggregation) -> None:
-        self.children.add(child)
+        self._children.add(child)
         child.parent = self
 
     def remove_child(self, child: PropertySet | Object | Attribute | Aggregation | Hirarchy) -> None:
@@ -489,7 +496,7 @@ class Hirarchy(object, metaclass=IterRegistry):
         else:
             for child in self.children:
                 child.remove_parent()
-        self.project.delete_item(self)
+        self.project.remove_item(self)
         del self
 
 
@@ -836,7 +843,7 @@ class PropertySet(Hirarchy):
 
     def create_child(self, name) -> PropertySet:
         child = PropertySet(name=name, project=self.project)
-        self.children.add(child)
+        self._children.add(child)
         child.parent = self
         for attribute in self.attributes:
             new_attrib = attribute.create_child()
@@ -1103,7 +1110,7 @@ class Aggregation(Hirarchy):
         if not child.set_parent(self, connection_type):
             return False
 
-        self.children.add(child)
+        self._children.add(child)
         child.parent_connection = connection_type
         return True
 
