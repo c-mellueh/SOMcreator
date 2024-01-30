@@ -10,28 +10,19 @@ from anytree import AnyNode
 
 from . import filehandling
 from .constants import value_constants, json_constants
+from dataclasses import dataclass, field
 
 
 # Add child to Parent leads to reverse
 
-def filter_by_project_phase(func):
-    """decorator function that filters list output of function by project phase"""
+def filter_by_filter_dict(func):
+    """decorator function that filters list output of function by project phase and use_case"""
 
     def inner(self):
         res = func(self)
         phase = self.current_project_phase if isinstance(self, Project) else self.project.current_project_phase
-        return list(filter(lambda obj: obj.get_project_phase_state(phase), res))
-
-    return inner
-
-
-def filter_by_use_case(func):
-    """decorator function that filters list output of function by use-case"""
-
-    def inner(self):
-        res = func(self)
         use_case = self.current_use_case if isinstance(self, Project) else self.project.current_use_case
-        return list(filter(lambda obj: obj.get_use_case_state(use_case), res))
+        return list(filter(lambda obj: obj.get_filter_state(phase, use_case), res))
 
     return inner
 
@@ -65,8 +56,9 @@ class IterRegistry(type):
 
 
 class Project(object):
-    def __init__(self, name: str = "", author: str | None = None) -> None:
-        SOMcreator.project = self
+    def __init__(self, name: str = "", author: str | None = None, phases: list[Phase] = None,
+                 use_case: list[UseCase] = None) -> None:
+        SOMcreator.active_project = self
         self._items = set()
         self._name = ""
         self._author = author
@@ -74,10 +66,18 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
-        self._current_project_phase = "Standard"
-        self._current_use_case = "Standard"
-        self._project_phases = [self._current_project_phase]
-        self._use_cases = [self._current_use_case]
+
+        if phases is None:
+            self._project_phases = [Phase("Stand", "Standard", "Automatisch generiert. Bitte umbenennen")]
+        else:
+            self._project_phases = phases
+        self._current_project_phase = self._project_phases[0]
+
+        if use_case is None:
+            self._use_cases = [UseCase("Stand", "Standard", "Automatisch generiert. Bitte umbenennen")]
+        else:
+            self._use_cases = use_case
+        self._current_use_case = self._use_cases[0]
         self.change_log = list()
 
     def add_item(self, item: Hirarchy):
@@ -186,125 +186,121 @@ class Project(object):
 
     # UseCase / ProjectPhase Handling
 
-    def get_project_phase_list(self) -> list[str]:
+    def get_project_phase_list(self) -> list[Phase]:
         return list(self._project_phases)
 
-    def get_use_case_list(self) -> list[str]:
+    def get_use_case_list(self) -> list[UseCase]:
         return list(self._use_cases)
 
-    def add_project_phase(self, project_phase_name: str, state: bool = True) -> None:
-        if project_phase_name not in self._project_phases:
-            self._project_phases.append(project_phase_name)
-            for item in self.get_all_hirarchy_items():
-                item.add_project_phase(project_phase_name, state)
+    def add_project_phase(self, project_phase_name: str, long_name: str = None, description: str = None) -> None:
+        if long_name is None:
+            long_name = project_phase_name
+        if description is None:
+            description = ""
 
-    def add_use_case(self, use_case_name: str, state: bool = True) -> None:
-        if use_case_name not in self._use_cases:
-            self._use_cases.append(use_case_name)
+        new_phase = Phase(project_phase_name, long_name, description)
+
+        if new_phase not in self._project_phases:
+            self._project_phases.append(new_phase)
             for item in self.get_all_hirarchy_items():
-                item.add_use_case(use_case_name, state)
+                item.add_project_phase(new_phase)
+
+    def add_use_case(self, use_case_name: str, long_name: str = None, description: str = None) -> None:
+        if long_name is None:
+            long_name = use_case_name
+        if description is None:
+            description = ""
+        new_use_case = UseCase(use_case_name, long_name, description)
+        if new_use_case not in self._use_cases:
+            self._use_cases.append(new_use_case)
+            for item in self.get_all_hirarchy_items():
+                item.add_use_case(new_use_case)
+
+    def get_project_phase_by_name(self, name: str):
+        for project_phase in self._project_phases:
+            if project_phase.name == name:
+                return project_phase
+
+    def get_use_case_by_name(self, name: str):
+        for use_case in self._use_cases:
+            if use_case.name == name:
+                return use_case
 
     def rename_project_phase(self, old_name: str, new_name: str) -> None:
-        if old_name not in self._project_phases:
-            logging.warning(f"Projektphase {old_name} nicht vorhanden")
+        phase = self.get_project_phase_by_name(old_name)
+        if phase is None:
+            logging.warning(f"Leistungsphase '{old_name}' nicht vorhanden")
             return
-        if old_name == self.current_project_phase:
-            self._current_project_phase = new_name
-
-        index = self._project_phases.index(old_name)
-        self._project_phases[index] = new_name
-
-        for item in self.get_all_hirarchy_items():
-            if old_name not in item.get_project_phase_dict():
-                logging.warning(f"Projektphase {old_name} nicht vorhanden")
-                continue
-            value = item.get_project_phase_state(old_name)
-            item.add_project_phase(project_phase_name=new_name, state=value)
-            item.remove_project_phase(old_name)
+        phase.name = new_name
 
     def rename_use_case(self, old_name: str, new_name: str) -> None:
-        if old_name not in self._use_cases:
-            logging.warning(f"UseCase {old_name} nicht vorhanden")
+        use_case = self.get_use_case_by_name(old_name)
+        if use_case is None:
+            logging.warning(f"Anwendungsfall '{use_case}' nicht vorhanden")
             return
-        if old_name == self.current_use_case:
-            self._current_use_case = new_name
-
-        index = self._use_cases.index(old_name)
-        self._use_cases[index] = new_name
-
-        for item in self.get_all_hirarchy_items():
-            if old_name not in item.get_use_case_dict():
-                logging.warning(f"{item}: Use-case {old_name} nicht vorhanden")
-                continue
-            value = item.get_use_case_state(old_name)
-            item.add_use_case(use_case_name=new_name, state=value)
-            item.remove_use_case(old_name)
+        use_case.name = new_name
 
     def remove_project_phase(self, project_phase_name: str) -> None:
-        if project_phase_name not in self._project_phases:
+        phase = self.get_project_phase_by_name(project_phase_name)
+        if phase is None:
             return
-        self._project_phases.remove(project_phase_name)
-
+        self._project_phases.remove(phase)
         for item in self.get_all_hirarchy_items():
-            item.remove_project_phase(project_phase_name)
+            item.remove_project_phase(phase)
 
     def remove_use_case(self, use_case_name: str) -> None:
-        if use_case_name not in self._use_cases:
+        use_case = self.get_use_case_by_name(use_case_name)
+        if use_case is None:
             return
-        self._use_cases.remove(use_case_name)
-
+        self._use_cases.remove(use_case)
         for item in self.get_all_hirarchy_items():
-            item.remove_use_case(use_case_name)
+            item.remove_use_case(use_case)
 
     @property
-    def current_project_phase(self) -> str:
+    def current_project_phase(self) -> Phase:
         if self._current_project_phase in self._project_phases:
             return self._current_project_phase
         else:
-            logging.error(f"{self._current_project_phase} not in {self._project_phases}")
+            logging.error(f"{self._current_project_phase.name} not in {self._project_phases}")
 
     @property
-    def current_use_case(self) -> str:
+    def current_use_case(self) -> UseCase:
         if self._current_use_case in self._use_cases:
             return self._current_use_case
         else:
-            logging.error(f"{self._current_use_case} not in {self._use_cases}")
+            logging.error(f"{self._current_use_case.name} not in {self._use_cases}")
 
     @current_project_phase.setter
-    def current_project_phase(self, value: str) -> None:
+    def current_project_phase(self, value: Phase) -> None:
         if value in self._project_phases:
             self._current_project_phase = value
         else:
-            logging.error(f"'{value}' nicht in Leistungsphasen-verzeichnis enthalten")
+            logging.error(f"'{value.name}' nicht in Leistungsphasen-verzeichnis enthalten")
 
     @current_use_case.setter
-    def current_use_case(self, value: str) -> None:
+    def current_use_case(self, value: UseCase) -> None:
         if value in self._use_cases:
             self._current_use_case = value
         else:
             logging.error(f"'{value}' nicht in Anwendungsfall-verzeichnis enthalten")
 
     @property
-    @filter_by_project_phase
-    @filter_by_use_case
+    @filter_by_filter_dict
     def objects(self) -> Iterator[Object]:
         return self.get_all_objects()
 
     @property
-    @filter_by_project_phase
-    @filter_by_use_case
+    @filter_by_filter_dict
     def property_sets(self) -> Iterator[PropertySet]:
         return self.get_all_property_sets()
 
     @property
-    @filter_by_project_phase
-    @filter_by_use_case
+    @filter_by_filter_dict
     def attributes(self) -> Iterator[Attribute]:
         return self.get_all_attributes()
 
     @property
-    @filter_by_project_phase
-    @filter_by_use_case
+    @filter_by_filter_dict
     def aggregations(self) -> list[Aggregation]:
         aggregations = list(Aggregation)
         return aggregations
@@ -314,18 +310,19 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
                  project: Project | None = None,
-                 project_phase_dict: dict[str, bool] | None = None, use_case_dict: dict[str, bool] = None) -> None:
-
+                 filter_dict: dict[Phase, dict[UseCase, bool]] = None) -> None:
         if project is None:
-            project = SOMcreator.project
+            project = SOMcreator.active_project
+
         self._project = project
         project.add_item(self)
-        if project_phase_dict is None:
-            project_phase_dict = dict()
-        if use_case_dict is None:
-            use_case_dict = dict()
-        self._project_phase_dict: dict[str, bool] = project_phase_dict
-        self._use_case_dict: dict[str, bool] = use_case_dict
+        self._filter_dict = filter_dict
+        if self._filter_dict is None:
+            self._filter_dict = dict()
+            for phase in project.get_project_phase_list():
+                self._filter_dict[phase] = dict()
+                for use_case in project.get_use_case_list():
+                    self._filter_dict[use_case] = True
         self._parent = None
         self._children = set()
         self._name = name
@@ -348,48 +345,26 @@ class Hirarchy(object, metaclass=IterRegistry):
     def remove_parent(self) -> None:
         self._parent = None
 
-    def get_project_phase_dict(self) -> dict[str, bool]:
-        return dict(self._project_phase_dict)
+    def get_filter_state(self, phase: Phase, use_case: UseCase) -> bool:
+        return self._filter_dict[phase][use_case]
 
-    def get_use_case_dict(self) -> dict[str, bool]:
-        return dict(self._use_case_dict)
+    def set_filter_state(self, phase: Phase, use_case: UseCase, value: bool) -> None:
+        self._filter_dict[phase][use_case] = value
 
-    def get_project_phase_state(self, project_phase_name: str) -> bool:
-        state = self._project_phase_dict.get(project_phase_name)
-        if state is None:
-            return True
-        return state
+    def remove_project_phase(self, phase: Phase) -> None:
+        self._filter_dict.pop(phase)
 
-    def get_use_case_state(self, use_case_name: str) -> bool:
-        state = self._use_case_dict.get(use_case_name)
-        state = True if state is None else state
-        return state
+    def remove_use_case(self, use_case: UseCase) -> None:
+        for use_case_dict in self._filter_dict.values():
+            use_case_dict.pop(use_case)
 
-    def remove_project_phase(self, project_phase_name: str) -> None:
-        if project_phase_name in self._project_phase_dict:
-            self._project_phase_dict.pop(project_phase_name)
+    def add_project_phase(self, phase: Phase) -> None:
+        use_cases = self.project.get_use_case_list()
+        self._filter_dict[phase] = {uc: True for uc in use_cases}
 
-    def remove_use_case(self, use_case_name: str) -> None:
-        if use_case_name in self._project_phase_dict:
-            self._project_phase_dict.pop(use_case_name)
-
-    def add_project_phase(self, project_phase_name: str, state: bool) -> None:
-        self._project_phase_dict[project_phase_name] = state
-
-    def add_use_case(self, use_case_name: str, state: bool) -> None:
-        self._use_case_dict[use_case_name] = state
-
-    def set_project_phase(self, project_phase_name: str, state: bool) -> None:
-        if project_phase_name in self._project_phase_dict:
-            self._project_phase_dict[project_phase_name] = state
-        else:
-            self.add_project_phase(project_phase_name, state)
-
-    def set_use_case(self, use_case_name: str, state: bool) -> None:
-        if use_case_name in self._use_case_dict:
-            self._use_case_dict[use_case_name] = state
-        else:
-            self.add_use_case(use_case_name, state)
+    def add_use_case(self, use_case: UseCase) -> None:
+        for use_case_dict in self._filter_dict.values():
+            use_case_dict[use_case] = True
 
     @property
     def optional_wo_hirarchy(self) -> bool:
@@ -463,8 +438,7 @@ class Hirarchy(object, metaclass=IterRegistry):
             return False
 
     @property
-    @filter_by_project_phase
-    @filter_by_use_case
+    @filter_by_filter_dict
     def children(self) -> set[PropertySet | Object | Attribute | Aggregation]:
         return self._children
 
@@ -504,8 +478,8 @@ class Object(Hirarchy):
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
                  optional: None | bool = None, abbreviation: None | str = None, project: None | Project = None,
-                 project_phases: None | dict[str, bool] = None, use_cases: None | dict[str, bool] = None) -> None:
-        super(Object, self).__init__(name, description, optional, project, project_phases, use_cases)
+                 filter_dict: dict[Phase, dict[UseCase, bool]] = None) -> None:
+        super(Object, self).__init__(name, description, optional, project, filter_dict)
         self._registry.add(self)
         self._property_sets: list[PropertySet] = list()
         self._ident_attrib = ident_attrib
@@ -551,8 +525,7 @@ class Object(Hirarchy):
         new_object = Object(name=self.name, ident_attrib=new_ident_attribute, uuid=str(uuid4()),
                             ifc_mapping=self.ifc_mapping,
                             description=self.description, optional=self.optional, abbreviation=self.abbreviation,
-                            project=self.project, project_phases=self.get_project_phase_dict(),
-                            use_cases=self.get_use_case_dict())
+                            project=self.project, filter_dict=self._filter_dict)
 
         for pset in new_property_sets:
             new_object.add_property_set(pset)
@@ -643,17 +616,9 @@ class Object(Hirarchy):
         return self._property_sets
 
     @property
+    @filter_by_filter_dict
     def property_sets(self) -> list[PropertySet]:
-        """returns PropertySets filtered by ProjectPhase
-        -> If Project is not defined it returns all PropertySets"""
-        if self.project is None:
-            logging.warning(f"Project for Object {self} is not defined")
-            property_sets = self.get_all_property_sets()
-        else:
-            property_sets = {pset for pset in self._property_sets if
-                             pset.get_project_phase_state(self.project.current_project_phase)}
-            property_sets = {p for p in property_sets if p.get_use_case_state(self.project.current_use_case)}
-        return sorted(property_sets, key=lambda x: x.name)
+        return sorted(self._property_sets, key=lambda x: x.name)
 
     # override name setter because of intheritance
     @property
@@ -682,7 +647,7 @@ class Object(Hirarchy):
 
         return attributes
 
-    def delete(self, recursive: bool) -> None:
+    def delete(self, recursive: bool = False) -> None:
         super(Object, self).delete(recursive)
 
         for pset in self.property_sets:
@@ -709,8 +674,8 @@ class PropertySet(Hirarchy):
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, project: None | Project = None,
-                 project_phases: None | dict[str, bool] = None, use_cases: None | dict[str, bool] = None) -> None:
-        super(PropertySet, self).__init__(name, description, optional, project, project_phases, use_cases)
+                 filter_dict: dict[Phase, dict[UseCase, bool]] = None) -> None:
+        super(PropertySet, self).__init__(name, description, optional, project, filter_dict)
         self._attributes = set()
         self._object = None
         if obj is not None:
@@ -732,7 +697,7 @@ class PropertySet(Hirarchy):
     def __copy__(self) -> PropertySet:
         new_pset = PropertySet(name=self.name, obj=None, uuid=str(uuid4()), description=self.description,
                                optional=self.optional, project=self.project,
-                               project_phases=self.get_project_phase_dict(), use_cases=self.get_use_case_dict())
+                               filter_dict=self._filter_dict)
 
         for attribute in self.attributes:
             new_attribute = cp.copy(attribute)
@@ -798,16 +763,9 @@ class PropertySet(Hirarchy):
         return self._attributes
 
     @property
-    def attributes(self) -> set[Attribute]:
-        """returns Attributes filtered by ProjectPhase
-        -> If Project is not defined it returns all Attributes"""
-        attributes = self.get_all_attributes()
-        if self.project is not None:
-            attributes = {attribute for attribute in attributes if
-                          attribute.get_project_phase_state(self.project.current_project_phase)}
-            attributes = {attribute for attribute in attributes if
-                          attribute.get_use_case_state(self.project.current_use_case)}
-        return attributes
+    def attributes(self) -> list[Attribute]:
+        """returns Attributes filtered"""
+        return sorted(self._attributes, key=lambda a: a.name)
 
     @attributes.setter
     def attributes(self, value: set[Attribute]) -> None:
@@ -856,9 +814,9 @@ class Attribute(Hirarchy):
                  data_type: str = value_constants.LABEL,
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
-                 project_phases: None | dict[str, bool] = None, use_cases: None | dict[str, bool] = None):
+                 filter_dict: dict[Phase, dict[UseCase, bool]] = None):
 
-        super(Attribute, self).__init__(name, description, optional, project, project_phases, use_cases)
+        super(Attribute, self).__init__(name, description, optional, project, filter_dict)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -893,8 +851,7 @@ class Attribute(Hirarchy):
                                data_type=cp.copy(self.data_type), child_inherits_values=self.child_inherits_values,
                                uuid=str(uuid4()),
                                description=self.description, optional=self.optional, revit_mapping=self.revit_name,
-                               project=self.project, project_phases=self.get_project_phase_dict(),
-                               use_cases=self.get_use_case_dict())
+                               project=self.project, filter_dict=self._filter_dict)
 
         if self.parent is not None:
             self.parent.add_child(new_attrib)
@@ -1020,7 +977,7 @@ class Attribute(Hirarchy):
         else:
             return False
 
-    def delete(self, recursive: bool) -> None:
+    def delete(self, recursive: bool = False) -> None:
         super(Attribute, self).delete(recursive)
         self.property_set.remove_attribute(self)
 
@@ -1038,10 +995,9 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=value_constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None, project_phases: None | dict[str, bool] = None,
-                 use_cases: None | dict[str, bool] = None):
+                 optional: None | bool = None, filter_dict: dict[Phase, dict[UseCase, bool]] = None):
 
-        super(Aggregation, self).__init__(obj.name, description, optional, obj.project, project_phases, use_cases)
+        super(Aggregation, self).__init__(obj.name, description, optional, obj.project, filter_dict)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())
@@ -1138,19 +1094,20 @@ class Aggregation(Hirarchy):
         return self.id_group() + "_" + self.object.abbreviation + "_xxx"
 
 
+@dataclass
 class ProjectFilter:
-    def __init__(self, name: str):
-        self.name = name
+    name: str
+    long_name: str = field(compare=False)
+    description: str = field(compare=False)
+    filter_type: int = field(init=False)  # 0 = UseCase ,1 = Phase
 
 
 class UseCase(ProjectFilter):
-    def __init__(self, name: str):
-        super().__init__(name)
+    filter_type = 0
 
 
 class Phase(ProjectFilter):
-    def __init__(self, name: str):
-        super().__init__(name)
+    filter_type = 1
 
 
 ClassTypes = Union[Project, Object, PropertySet, Attribute, Aggregation]
