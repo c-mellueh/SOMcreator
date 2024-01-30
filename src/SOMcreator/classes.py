@@ -186,13 +186,23 @@ class Project(object):
 
     # UseCase / ProjectPhase Handling
 
+    def get_phase_index(self, phase: Phase) -> int | None:
+        if phase in self._project_phases:
+            return self._project_phases.index(phase)
+        return None
+
+    def get_use_case_index(self, use_case: UseCase) -> int | None:
+        if use_case in self._use_cases:
+            return self._use_cases.index(use_case)
+        return None
+
     def get_project_phase_list(self) -> list[Phase]:
         return list(self._project_phases)
 
     def get_use_case_list(self) -> list[UseCase]:
         return list(self._use_cases)
 
-    def add_project_phase(self, project_phase_name: str, long_name: str = None, description: str = None) -> None:
+    def create_project_phase(self, project_phase_name: str, long_name: str = None, description: str = None) -> Phase:
         if long_name is None:
             long_name = project_phase_name
         if description is None:
@@ -203,9 +213,15 @@ class Project(object):
         if new_phase not in self._project_phases:
             self._project_phases.append(new_phase)
             for item in self.get_all_hirarchy_items():
-                item.add_project_phase(new_phase)
+                item.add_project_phase()
+        return new_phase
 
-    def add_use_case(self, use_case_name: str, long_name: str = None, description: str = None) -> None:
+    def add_project_phase(self,phase:Phase):
+        if phase not in self._project_phases:
+            self._project_phases.append(phase)
+        return self._project_phases.index(phase)
+
+    def create_use_case(self, use_case_name: str, long_name: str = None, description: str = None) -> UseCase:
         if long_name is None:
             long_name = use_case_name
         if description is None:
@@ -214,7 +230,13 @@ class Project(object):
         if new_use_case not in self._use_cases:
             self._use_cases.append(new_use_case)
             for item in self.get_all_hirarchy_items():
-                item.add_use_case(new_use_case)
+                item.add_use_case()
+        return new_use_case
+
+    def add_use_case(self,use_case:UseCase):
+        if use_case not in self._use_cases:
+            self._use_cases.append(use_case)
+        return self._use_cases.index(use_case)
 
     def get_project_phase_by_name(self, name: str):
         for project_phase in self._project_phases:
@@ -310,19 +332,21 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     def __init__(self, name: str, description: str | None = None, optional: bool | None = None,
                  project: Project | None = None,
-                 filter_dict: dict[Phase, dict[UseCase, bool]] = None) -> None:
+                 filter_matrix: list[list[bool]] = None) -> None:
         if project is None:
             project = SOMcreator.active_project
 
         self._project = project
         project.add_item(self)
-        self._filter_dict = filter_dict
-        if self._filter_dict is None:
-            self._filter_dict = dict()
-            for phase in project.get_project_phase_list():
-                self._filter_dict[phase] = dict()
-                for use_case in project.get_use_case_list():
-                    self._filter_dict[use_case] = True
+        self._filter_matrix = filter_matrix
+        if self._filter_matrix is None:
+            self._filter_matrix = list()
+            for _ in project.get_project_phase_list():
+                phase_list = list()
+                for __ in project.get_use_case_list():
+                    phase_list.append(True)
+                self._filter_matrix.append(phase_list)
+
         self._parent = None
         self._children = set()
         self._name = name
@@ -345,26 +369,34 @@ class Hirarchy(object, metaclass=IterRegistry):
     def remove_parent(self) -> None:
         self._parent = None
 
-    def get_filter_state(self, phase: Phase, use_case: UseCase) -> bool:
-        return self._filter_dict[phase][use_case]
+    def get_filter_state(self, phase: Phase, use_case: UseCase) -> bool | None:
+        phase_index = self.project.get_phase_index(phase)
+        use_case_index = self.project.get_use_case_index(use_case)
+        if phase_index is None or use_case_index is None:
+            return None
+        return self._filter_matrix[phase_index][use_case_index]
 
     def set_filter_state(self, phase: Phase, use_case: UseCase, value: bool) -> None:
-        self._filter_dict[phase][use_case] = value
+        phase_index = self.project.get_phase_index(phase)
+        use_case_index = self.project.get_use_case_index(use_case)
+        self._filter_matrix[phase_index][use_case_index] = value
 
     def remove_project_phase(self, phase: Phase) -> None:
-        self._filter_dict.pop(phase)
+        phase_index = self.project.get_phase_index(phase)
+        self._filter_matrix.pop(phase_index)
 
     def remove_use_case(self, use_case: UseCase) -> None:
-        for use_case_dict in self._filter_dict.values():
-            use_case_dict.pop(use_case)
+        use_case_index = self.project.get_use_case_index(use_case)
+        for use_case_list in self._filter_matrix:
+            use_case_list.pop(use_case_index)
 
-    def add_project_phase(self, phase: Phase) -> None:
+    def add_project_phase(self) -> None:
         use_cases = self.project.get_use_case_list()
-        self._filter_dict[phase] = {uc: True for uc in use_cases}
+        self._filter_matrix.append([True for _ in use_cases])
 
-    def add_use_case(self, use_case: UseCase) -> None:
-        for use_case_dict in self._filter_dict.values():
-            use_case_dict[use_case] = True
+    def add_use_case(self) -> None:
+        for use_case_list in self._filter_matrix:
+            use_case_list.append(True)
 
     @property
     def optional_wo_hirarchy(self) -> bool:
@@ -478,8 +510,8 @@ class Object(Hirarchy):
     def __init__(self, name: str, ident_attrib: [Attribute, str], uuid: str = None,
                  ifc_mapping: set[str] | None = None, description: None | str = None,
                  optional: None | bool = None, abbreviation: None | str = None, project: None | Project = None,
-                 filter_dict: dict[Phase, dict[UseCase, bool]] = None) -> None:
-        super(Object, self).__init__(name, description, optional, project, filter_dict)
+                 filter_matrix: list[list[bool]] = None) -> None:
+        super(Object, self).__init__(name, description, optional, project, filter_matrix)
         self._registry.add(self)
         self._property_sets: list[PropertySet] = list()
         self._ident_attrib = ident_attrib
@@ -525,7 +557,7 @@ class Object(Hirarchy):
         new_object = Object(name=self.name, ident_attrib=new_ident_attribute, uuid=str(uuid4()),
                             ifc_mapping=self.ifc_mapping,
                             description=self.description, optional=self.optional, abbreviation=self.abbreviation,
-                            project=self.project, filter_dict=self._filter_dict)
+                            project=self.project, filter_matrix=self._filter_matrix)
 
         for pset in new_property_sets:
             new_object.add_property_set(pset)
@@ -674,8 +706,8 @@ class PropertySet(Hirarchy):
 
     def __init__(self, name: str, obj: Object = None, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, project: None | Project = None,
-                 filter_dict: dict[Phase, dict[UseCase, bool]] = None) -> None:
-        super(PropertySet, self).__init__(name, description, optional, project, filter_dict)
+                 filter_matrix: list[list[bool]] = None) -> None:
+        super(PropertySet, self).__init__(name, description, optional, project, filter_matrix)
         self._attributes = set()
         self._object = None
         if obj is not None:
@@ -697,7 +729,7 @@ class PropertySet(Hirarchy):
     def __copy__(self) -> PropertySet:
         new_pset = PropertySet(name=self.name, obj=None, uuid=str(uuid4()), description=self.description,
                                optional=self.optional, project=self.project,
-                               filter_dict=self._filter_dict)
+                               filter_matrix=self._filter_matrix)
 
         for attribute in self.attributes:
             new_attribute = cp.copy(attribute)
@@ -814,9 +846,9 @@ class Attribute(Hirarchy):
                  data_type: str = value_constants.LABEL,
                  child_inherits_values: bool = False, uuid: str = None, description: None | str = None,
                  optional: None | bool = None, revit_mapping: None | str = None, project: Project | None = None,
-                 filter_dict: dict[Phase, dict[UseCase, bool]] = None):
+                 filter_matrix: list[list[bool]] = None):
 
-        super(Attribute, self).__init__(name, description, optional, project, filter_dict)
+        super(Attribute, self).__init__(name, description, optional, project, filter_matrix)
         self._value = value
         self._property_set = property_set
         self._value_type = value_type
@@ -851,7 +883,7 @@ class Attribute(Hirarchy):
                                data_type=cp.copy(self.data_type), child_inherits_values=self.child_inherits_values,
                                uuid=str(uuid4()),
                                description=self.description, optional=self.optional, revit_mapping=self.revit_name,
-                               project=self.project, filter_dict=self._filter_dict)
+                               project=self.project, filter_matrix=self._filter_matrix)
 
         if self.parent is not None:
             self.parent.add_child(new_attrib)
@@ -995,9 +1027,9 @@ class Aggregation(Hirarchy):
 
     def __init__(self, obj: Object, parent_connection=value_constants.AGGREGATION, uuid: str | None = None,
                  description: None | str = None,
-                 optional: None | bool = None, filter_dict: dict[Phase, dict[UseCase, bool]] = None):
+                 optional: None | bool = None, filter_matrix: list[list[bool]] = None):
 
-        super(Aggregation, self).__init__(obj.name, description, optional, obj.project, filter_dict)
+        super(Aggregation, self).__init__(obj.name, description, optional, obj.project, filter_matrix)
         self._registry.add(self)
         if uuid is None:
             self.uuid = str(uuid4())

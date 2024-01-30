@@ -112,14 +112,14 @@ def create_mapping_script(project: classes.Project, pset_name: str, path: str):
 
 def export_json(project: classes.Project, path: str) -> dict:
     def create_filter_dict(filter_list: list[classes.Phase] | list[classes.UseCase]) -> list[FilterDict]:
-        l = list()
+        fl = list()
         for fil in filter_list:
-            l.append({
+            fl.append({
                 "name":        fil.name,
                 "long_name":   fil.long_name,
                 "description": fil.description
             })
-        return l
+        return fl
 
     def create_project_data(project_dict: ProjectDict) -> None:
         project_dict[NAME] = project.name
@@ -231,8 +231,30 @@ def export_json(project: classes.Project, path: str) -> dict:
     return main_dict
 
 
+def _get_filter_lists(project_dict: ProjectDict):
+    project_phases = project_dict.get(PROJECT_PHASES)
+    use_cases = project_dict.get(USE_CASES)
+    phase_list = list()
+    use_case_list = list()
+    if project_phases is not None and isinstance(project_phases, list):
+        for phase in project_phases:
+            if isinstance(phase, str):
+                phase_list.append(classes.Phase(phase, phase, ""))
+            else:
+                phase_list.append(classes.Phase(phase["name"], phase.get("long_name"), phase.get("description")))
+
+    if use_cases is not None and isinstance(use_cases, list):
+        for use_case in use_cases:
+            if isinstance(use_case, str):
+                use_case_list.append(classes.Phase(use_case, use_case, ""))
+            else:
+                use_case_list.append(
+                    classes.UseCase(use_case["name"], use_case.get("long_name"), use_case.get("description")))
+    return phase_list, use_case_list
+
+
 def import_json(project: classes.Project, path: str):
-    def load_project_data(project_dict: ProjectDict) -> None:
+    def load_project_data() -> None:
         project.name = project_dict.get(NAME)
         project.author = project_dict.get(AUTHOR)
         project.version = project_dict.get(VERSION)
@@ -241,28 +263,15 @@ def import_json(project: classes.Project, path: str):
         aggregation_attribute = project_dict.get(AGGREGATION_ATTRIBUTE)
         current_project_phase = project_dict.get(CURRENT_PR0JECT_PHASE)
         current_use_case = project_dict.get(CURRENT_USE_CASE)
-        project_phases = project_dict.get(PROJECT_PHASES)
-        use_cases = project_dict.get(USE_CASES)
-
         if aggregation_pset_name is not None:
             project.aggregation_pset = aggregation_pset_name
         if aggregation_attribute is not None:
             project.aggregation_attribute = aggregation_attribute
-        if project_phases is not None and isinstance(project_phases, list):
-            for phase in project_phases:
-                if isinstance(phase, str):
-                    project.add_project_phase(phase)
-                else:
-                    phase: FilterDict
-                    project.add_project_phase(phase["name"], phase.get("long_name"), phase.get("description"))
-
-        if use_cases is not None and isinstance(use_cases, list):
-            for use_case in use_cases:
-                if isinstance(use_case, str):
-                    project.add_use_case(use_case)
-                else:
-                    project.add_use_case(use_case["name"], use_case.get("long_name"), use_case.get("description"))
-
+        phase_list, use_case_list = _get_filter_lists(project_dict)
+        for phase in phase_list:
+            project.add_project_phase(phase)
+        for use_case in use_case_list:
+            project.add_use_case(use_case)
         if current_project_phase is not None:
             if isinstance(current_project_phase, str):
                 project.current_project_phase = project.get_project_phase_by_name(current_project_phase)
@@ -279,8 +288,7 @@ def import_json(project: classes.Project, path: str):
         elif project.get_use_case_list():
             project.current_use_case = project.get_use_case_list()[0]
 
-    def load_basics(element_dict: StandardDict) -> tuple[
-        str, str, bool, str, dict[classes.Phase, dict[classes.UseCase, bool]]]:
+    def load_basics(element_dict: StandardDict) -> tuple[str, str, bool, str, list[list[bool]]]:
         def get_value(d: dict, p: str) -> bool:
             return d.get(p) if d.get(p) is not None else True
 
@@ -289,38 +297,44 @@ def import_json(project: classes.Project, path: str):
         optional = element_dict[OPTIONAL]
         parent = element_dict[PARENT]
         matrix = element_dict.get(FILTER_MATRIX)
-        phase_list = project.get_project_phase_list()
-        use_case_list = project.get_use_case_list()
+        phase_list, use_case_list = _get_filter_lists(project_dict)
+        matrix_list = list()
+        for _ in project.get_project_phase_list():
+            matrix_list.append([True for __ in project.get_use_case_list()])
 
         if matrix is None:  # handle deprecated file types
-            project_phases = element_dict.get(PROJECT_PHASES)
-            if isinstance(project_phases, dict):  # deprecated
-                phase_name_list = [p.name for p in phase_list]
-                project_phases = [get_value(project_phases, phase) for phase in phase_name_list]
-            elif project_phases is None:
-                project_phases = [True for _ in phase_list]
+            matrix = list()
+            file_phases: list[bool] = element_dict.get(PROJECT_PHASES)
+            if isinstance(file_phases, dict):  # deprecated
+                output_phases = [get_value(file_phases, phase.name) for phase in project.get_project_phase_list()]
+            elif file_phases is None:
+                output_phases = [True for _ in project.get_project_phase_list()]
+            else:
+                output_phases = [True for _ in project.get_project_phase_list()]
+                for output_index, existing_phase in enumerate(project.get_project_phase_list()):
+                    if existing_phase in phase_list:
+                        value = file_phases[phase_list.index(existing_phase)]
+                        output_phases[output_index] = value
 
-            use_cases = element_dict.get(USE_CASES)
-            if use_cases is None:
-                use_cases = [True for _ in use_case_list]
-            filter_dict = dict()
+            file_use_cases: list[bool] = element_dict.get(USE_CASES)
+            if file_use_cases is None:
+                output_use_cases = [True for _ in project.get_use_case_list()]
+            else:
+                output_use_cases = [True for _ in project.get_use_case_list()]
+                for output_index, existing_use_case in enumerate(project.get_use_case_list()):
+                    if existing_use_case in use_case_list:
+                        value = file_use_cases[use_case_list.index(existing_use_case)]
+                        output_use_cases[output_index] = value
 
-            for phase_index, phase in enumerate(phase_list):
-                filter_dict[phase] = dict()
-                for use_case_index, use_case in enumerate(use_case_list):
-                    filter_dict[phase][use_case] = project_phases[phase_index] and use_cases[use_case_index]
-
-        else:
-            filter_dict = dict()
-            for phase_row, phase in zip(matrix, phase_list):
-                filter_dict[phase] = dict()
-                for value, use_case in zip(phase_row, use_case_list):
-                    filter_dict[phase][use_case] = value
-
-        return name, description, optional, parent, filter_dict
+            for phase_index, phase in enumerate(output_phases):
+                pl = list()
+                for use_case_index, use_case in enumerate(output_use_cases):
+                    pl.append(bool(output_phases[phase_index] and output_use_cases[use_case_index]))
+                matrix.append(pl)
+        return name, description, optional, parent, matrix
 
     def load_object(object_dict: ObjectDict, identifier: str) -> None:
-        name, description, optional, parent, filter_dict = load_basics(object_dict)
+        name, description, optional, parent, filter_matrix = load_basics(object_dict)
         ifc_mapping = object_dict[IFC_MAPPINGS]
         if isinstance(ifc_mapping, list):
             ifc_mapping = set(ifc_mapping)
@@ -329,7 +343,7 @@ def import_json(project: classes.Project, path: str):
 
         obj = classes.Object(name=name, ident_attrib=None, uuid=identifier, ifc_mapping=ifc_mapping,
                              description=description, optional=optional, abbreviation=abbreviation, project=project,
-                             filter_dict=filter_dict)
+                             filter_matrix=filter_matrix)
         property_sets_dict = object_dict[PROPERTY_SETS]
         for ident, pset_dict in property_sets_dict.items():
             load_pset(pset_dict, ident, obj)
@@ -339,16 +353,16 @@ def import_json(project: classes.Project, path: str):
         parent_dict[obj] = parent
 
     def load_pset(pset_dict: PropertySetDict, identifier: str, obj: classes.Object | None) -> None:
-        name, description, optional, parent, filter_dict = load_basics(pset_dict)
+        name, description, optional, parent, filter_matrix = load_basics(pset_dict)
         pset = classes.PropertySet(name=name, obj=obj, uuid=identifier, description=description, optional=optional,
-                                   project=project, filter_dict=filter_dict)
+                                   project=project, filter_matrix=filter_matrix)
         attributes_dict = pset_dict[ATTRIBUTES]
         for ident, attribute_dict in attributes_dict.items():
             load_attribute(attribute_dict, ident, pset)
         parent_dict[pset] = parent
 
     def load_attribute(attribute_dict: dict, identifier: str, property_set: classes.PropertySet, ) -> None:
-        name, description, optional, parent, filter_dict = load_basics(attribute_dict)
+        name, description, optional, parent, filter_matrix = load_basics(attribute_dict)
         value = attribute_dict[VALUE]
         value_type = attribute_dict[VALUE_TYPE]
         data_type = attribute_dict[DATA_TYPE]
@@ -363,7 +377,7 @@ def import_json(project: classes.Project, path: str):
                                       data_type=data_type,
                                       child_inherits_values=child_inherits_value, uuid=identifier,
                                       description=description, optional=optional, revit_mapping=revit_mapping,
-                                      project=project, filter_dict=filter_dict)
+                                      project=project, filter_matrix=filter_matrix)
         parent_dict[attribute] = parent
 
     def load_parents():
@@ -397,12 +411,12 @@ def import_json(project: classes.Project, path: str):
             uuid_dict[uuid].add_child(entity)
 
     def load_aggregation(aggregation_dict: dict, identifier: str, ):
-        name, description, optional, parent, filter_dict = load_basics(aggregation_dict)
+        name, description, optional, parent, filter_matrix = load_basics(aggregation_dict)
         object_uuid = aggregation_dict[OBJECT]
         obj = classes.get_element_by_uuid(object_uuid)
         parent_connection = aggregation_dict[CONNECTION]
         aggregation = classes.Aggregation(obj=obj, parent_connection=parent_connection, uuid=identifier,
-                                          description=description, optional=optional, filter_dict=filter_dict)
+                                          description=description, optional=optional, filter_matrix=filter_matrix)
         aggregation_parent_dict[aggregation] = (parent, parent_connection)
 
     def build_aggregation_structure():
@@ -426,10 +440,8 @@ def import_json(project: classes.Project, path: str):
     with open(path, "r") as file:
         main_dict: MainDict = json.load(file)
 
-    if main_dict.get(PROJECT) is None:
-        logging.warning(f"{PROJECT}-dict doesn't exist unable to load Author, Name and Version")
-    else:
-        load_project_data(main_dict.get(PROJECT))
+    project_dict = main_dict.get(PROJECT)
+    load_project_data()
 
     predef_pset_dict = main_dict.get(PREDEFINED_PSETS)
     predef_pset_dict = dict() if check_dict(predef_pset_dict, PREDEFINED_PSETS) else predef_pset_dict
