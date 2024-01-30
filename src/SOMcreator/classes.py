@@ -19,7 +19,7 @@ def filter_by_project_phase(func):
 
     def inner(self):
         res = func(self)
-        phase = self.current_project_phase if isinstance(self,Project) else self.project.current_project_phase
+        phase = self.current_project_phase if isinstance(self, Project) else self.project.current_project_phase
         return list(filter(lambda obj: obj.get_project_phase_state(phase), res))
 
     return inner
@@ -30,7 +30,7 @@ def filter_by_use_case(func):
 
     def inner(self):
         res = func(self)
-        use_case = self.current_use_case if isinstance(self,Project) else self.project.current_use_case
+        use_case = self.current_use_case if isinstance(self, Project) else self.project.current_use_case
         return list(filter(lambda obj: obj.get_use_case_state(use_case), res))
 
     return inner
@@ -283,8 +283,6 @@ class Project(object):
             self._current_use_case = value
         else:
             logging.error(f"'{value}' nicht in Anwendungsfall-verzeichnis enthalten")
-
-
 
     @property
     @filter_by_project_phase
@@ -1138,6 +1136,21 @@ class Aggregation(Hirarchy):
 
     def identity(self) -> str:
         return self.id_group() + "_" + self.object.abbreviation + "_xxx"
+
+
+class ProjectFilter:
+    def __init__(self, name: str):
+        self.name = name
+
+
+class UseCase(ProjectFilter):
+    def __init__(self, name: str):
+        super().__init__(name)
+
+
+class Phase(ProjectFilter):
+    def __init__(self, name: str):
+        super().__init__(name)
 
 
 ClassTypes = Union[Project, Object, PropertySet, Attribute, Aggregation]
