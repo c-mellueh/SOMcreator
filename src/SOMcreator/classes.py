@@ -57,7 +57,7 @@ class IterRegistry(type):
 
 class Project(object):
     def __init__(self, name: str = "", author: str | None = None, phases: list[Phase] = None,
-                 use_case: list[UseCase] = None) -> None:
+                 use_case: list[UseCase] = None, filter_matrix: list[list[bool]] = None) -> None:
         SOMcreator.active_project = self
         self._items = set()
         self._name = ""
@@ -66,6 +66,7 @@ class Project(object):
         self.name = name
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
+        self._filter_matrix = filter_matrix
 
         if phases is None:
             self._project_phases = [Phase("Stand", "Standard", "Automatisch generiert. Bitte umbenennen")]
@@ -77,6 +78,12 @@ class Project(object):
             self._use_cases = [UseCase("Stand", "Standard", "Automatisch generiert. Bitte umbenennen")]
         else:
             self._use_cases = use_case
+
+        if filter_matrix is None:
+            self._filter_matrix = list()
+            for _ in self._project_phases:
+                self._filter_matrix.append([True for __ in self._use_cases])
+
         self._current_use_case = self._use_cases[0]
         self.change_log = list()
 
@@ -135,6 +142,9 @@ class Project(object):
         filehandling.create_mapping_script(self, pset_name, path)
 
     def open(self, path: str | os.PathLike) -> dict:
+        self._use_cases = list()
+        self._project_phases = list()
+        self._filter_matrix = list()
         json_dict = filehandling.import_json(self, path)
         return json_dict
 
@@ -186,6 +196,18 @@ class Project(object):
 
     # UseCase / ProjectPhase Handling
 
+    def get_filter_matrix(self) -> list[list[bool]]:
+        return self._filter_matrix
+
+    def set_filter_matrix(self,matrix:list[list[bool]]):
+        self._filter_matrix = matrix
+
+    def get_filter_state(self,phase:Phase,use_case:UseCase):
+        return self._filter_matrix[self.get_phase_index(phase)][self.get_use_case_index(use_case)]
+
+    def set_filter_state(self,phase:Phase,use_case:UseCase,value:bool):
+        self._filter_matrix[self.get_phase_index(phase)][self.get_use_case_index(use_case)] = value
+
     def get_phase_index(self, phase: Phase) -> int | None:
         if phase in self._project_phases:
             return self._project_phases.index(phase)
@@ -207,18 +229,16 @@ class Project(object):
             long_name = project_phase_name
         if description is None:
             description = ""
-
         new_phase = Phase(project_phase_name, long_name, description)
-
-        if new_phase not in self._project_phases:
-            self._project_phases.append(new_phase)
-            for item in self.get_all_hirarchy_items():
-                item.add_project_phase()
+        self.add_project_phase(new_phase)
         return new_phase
 
-    def add_project_phase(self,phase:Phase):
+    def add_project_phase(self, phase: Phase):
         if phase not in self._project_phases:
             self._project_phases.append(phase)
+            for item in self.get_all_hirarchy_items():
+                item.add_project_phase()
+            self._filter_matrix.append([True for _ in self._use_cases])
         return self._project_phases.index(phase)
 
     def create_use_case(self, use_case_name: str, long_name: str = None, description: str = None) -> UseCase:
@@ -227,15 +247,16 @@ class Project(object):
         if description is None:
             description = ""
         new_use_case = UseCase(use_case_name, long_name, description)
-        if new_use_case not in self._use_cases:
-            self._use_cases.append(new_use_case)
-            for item in self.get_all_hirarchy_items():
-                item.add_use_case()
+        self.add_use_case(new_use_case)
         return new_use_case
 
-    def add_use_case(self,use_case:UseCase):
+    def add_use_case(self, use_case: UseCase):
         if use_case not in self._use_cases:
             self._use_cases.append(use_case)
+            for item in self.get_all_hirarchy_items():
+                item.add_use_case()
+            for use_case_list in self._filter_matrix:
+                use_case_list.append(True)
         return self._use_cases.index(use_case)
 
     def get_project_phase_by_name(self, name: str):
@@ -266,17 +287,22 @@ class Project(object):
         phase = self.get_project_phase_by_name(project_phase_name)
         if phase is None:
             return
+        index = self.get_phase_index(phase)
         self._project_phases.remove(phase)
         for item in self.get_all_hirarchy_items():
             item.remove_project_phase(phase)
+        self._filter_matrix.pop(index)
 
     def remove_use_case(self, use_case_name: str) -> None:
         use_case = self.get_use_case_by_name(use_case_name)
         if use_case is None:
             return
+        index = self.get_use_case_index(use_case)
         self._use_cases.remove(use_case)
         for item in self.get_all_hirarchy_items():
             item.remove_use_case(use_case)
+        for use_case_list in self._filter_matrix:
+            use_case_list.pop(index)
 
     @property
     def current_project_phase(self) -> Phase:
@@ -368,6 +394,9 @@ class Hirarchy(object, metaclass=IterRegistry):
 
     def remove_parent(self) -> None:
         self._parent = None
+
+    def get_filter_matrix(self):
+        return self._filter_matrix
 
     def get_filter_state(self, phase: Phase, use_case: UseCase) -> bool | None:
         phase_index = self.project.get_phase_index(phase)

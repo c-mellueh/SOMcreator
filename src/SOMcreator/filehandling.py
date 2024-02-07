@@ -37,7 +37,7 @@ class ProjectDict(TypedDict):
     current_use_case: int
     ProjectPhases: list[FilterDict]
     UseCases: list[FilterDict]
-
+    filter_matrix: list[list[bool]]
 
 class ObjectDict(StandardDict):
     IfcMappings: list[str]
@@ -131,6 +131,7 @@ def export_json(project: classes.Project, path: str) -> dict:
         project_dict[CURRENT_USE_CASE] = project.get_use_case_list().index(project.current_use_case)
         project_dict[PROJECT_PHASES] = create_filter_dict(project.get_project_phase_list())
         project_dict[USE_CASES] = create_filter_dict(project.get_use_case_list())
+        project_dict[FILTER_MATRIX] = project.get_filter_matrix()
 
     def create_filter_matrix(element: classes.ClassTypes):
         proj = element.project
@@ -246,7 +247,7 @@ def _get_filter_lists(project_dict: ProjectDict):
     if use_cases is not None and isinstance(use_cases, list):
         for use_case in use_cases:
             if isinstance(use_case, str):
-                use_case_list.append(classes.Phase(use_case, use_case, ""))
+                use_case_list.append(classes.UseCase(use_case, use_case, ""))
             else:
                 use_case_list.append(
                     classes.UseCase(use_case["name"], use_case.get("long_name"), use_case.get("description")))
@@ -263,6 +264,7 @@ def import_json(project: classes.Project, path: str):
         aggregation_attribute = project_dict.get(AGGREGATION_ATTRIBUTE)
         current_project_phase = project_dict.get(CURRENT_PR0JECT_PHASE)
         current_use_case = project_dict.get(CURRENT_USE_CASE)
+        filter_matrix = project_dict.get(FILTER_MATRIX)
         if aggregation_pset_name is not None:
             project.aggregation_pset = aggregation_pset_name
         if aggregation_attribute is not None:
@@ -287,6 +289,9 @@ def import_json(project: classes.Project, path: str):
                 project.current_use_case = project.get_use_case_list()[current_use_case]
         elif project.get_use_case_list():
             project.current_use_case = project.get_use_case_list()[0]
+
+        if filter_matrix is not None:
+            project.set_filter_matrix(filter_matrix)
 
     def load_basics(element_dict: StandardDict) -> tuple[str, str, bool, str, list[list[bool]]]:
         def get_value(d: dict, p: str) -> bool:
