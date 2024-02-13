@@ -74,7 +74,7 @@ class Project(object):
             self._project_phases = phases
         self._current_project_phase = self._project_phases[0]
 
-        if use_case is None:
+        if not use_case:
             self._use_cases = [UseCase("Stand", "Standard", "Automatisch generiert. Bitte umbenennen")]
         else:
             self._use_cases = use_case
@@ -141,12 +141,9 @@ class Project(object):
     def create_mapping_script(self, pset_name: str, path: str) -> None:
         filehandling.create_mapping_script(self, pset_name, path)
 
-    def open(self, path: str | os.PathLike) -> dict:
-        self._use_cases = list()
-        self._project_phases = list()
-        self._filter_matrix = list()
-        json_dict = filehandling.import_json(self, path)
-        return json_dict
+    @classmethod
+    def open(cls, path: str | os.PathLike) -> tuple[Project,dict]:
+        return filehandling.open_json(cls, path)
 
     def save(self, path: str | os.PathLike) -> dict:
         json_dict = filehandling.export_json(self, path)

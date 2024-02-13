@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TypedDict, TYPE_CHECKING, Type
 import json
 import logging
 import os
@@ -9,6 +9,9 @@ import jinja2
 from . import classes
 from .Template import MAPPING_TEMPLATE, HOME_DIR
 from .constants.value_constants import OLD_DATATYPE_DICT
+
+if TYPE_CHECKING:
+    from SOMcreator import Project
 
 
 class StandardDict(TypedDict):
@@ -38,6 +41,7 @@ class ProjectDict(TypedDict):
     ProjectPhases: list[FilterDict]
     UseCases: list[FilterDict]
     filter_matrix: list[list[bool]]
+
 
 class ObjectDict(StandardDict):
     IfcMappings: list[str]
@@ -254,44 +258,46 @@ def _get_filter_lists(project_dict: ProjectDict):
     return phase_list, use_case_list
 
 
-def import_json(project: classes.Project, path: str):
-    def load_project_data() -> None:
-        project.name = project_dict.get(NAME)
-        project.author = project_dict.get(AUTHOR)
-        project.version = project_dict.get(VERSION)
+def open_json(cls: Type[Project], path: str):
+    def load_project() -> Project:
+        name = project_dict.get(NAME)
+        author = project_dict.get(AUTHOR)
+        version = project_dict.get(VERSION)
 
         aggregation_pset_name = project_dict.get(AGGREGATION_PSET)
         aggregation_attribute = project_dict.get(AGGREGATION_ATTRIBUTE)
         current_project_phase = project_dict.get(CURRENT_PR0JECT_PHASE)
         current_use_case = project_dict.get(CURRENT_USE_CASE)
         filter_matrix = project_dict.get(FILTER_MATRIX)
-        if aggregation_pset_name is not None:
-            project.aggregation_pset = aggregation_pset_name
-        if aggregation_attribute is not None:
-            project.aggregation_attribute = aggregation_attribute
+
         phase_list, use_case_list = _get_filter_lists(project_dict)
-        for phase in phase_list:
-            project.add_project_phase(phase)
-        for use_case in use_case_list:
-            project.add_use_case(use_case)
+
+        if filter_matrix is None:
+            filter_matrix = list()
+
+        proj = cls(name, author, phase_list, use_case_list, filter_matrix)
+        if aggregation_pset_name is not None:
+            proj.aggregation_pset = aggregation_pset_name
+        if aggregation_attribute is not None:
+            proj.aggregation_attribute = aggregation_attribute
+
         if current_project_phase is not None:
             if isinstance(current_project_phase, str):
-                project.current_project_phase = project.get_project_phase_by_name(current_project_phase)
+                proj.current_project_phase = proj.get_project_phase_by_name(current_project_phase)
             else:
-                project.current_project_phase = project.get_project_phase_list()[current_project_phase]
-        elif project.get_project_phase_list():
-            project.current_project_phase = project.get_project_phase_list()[0]
+                proj.current_project_phase = proj.get_project_phase_list()[current_project_phase]
+        elif proj.get_project_phase_list():
+            proj.current_project_phase = proj.get_project_phase_list()[0]
 
         if current_use_case is not None:
             if isinstance(current_use_case, str):
-                project.current_use_case = project.get_use_case_by_name(current_use_case)
+                proj.current_use_case = proj.get_use_case_by_name(current_use_case)
             else:
-                project.current_use_case = project.get_use_case_list()[current_use_case]
-        elif project.get_use_case_list():
-            project.current_use_case = project.get_use_case_list()[0]
-
-        if filter_matrix is not None:
-            project.set_filter_matrix(filter_matrix)
+                proj.current_use_case = proj.get_use_case_list()[current_use_case]
+        elif proj.get_use_case_list():
+            proj.current_use_case = proj.get_use_case_list()[0]
+        proj.version = version
+        return proj
 
     def load_basics(element_dict: StandardDict) -> tuple[str, str, bool, str, list[list[bool]]]:
         def get_value(d: dict, p: str) -> bool:
@@ -446,7 +452,7 @@ def import_json(project: classes.Project, path: str):
         main_dict: MainDict = json.load(file)
 
     project_dict = main_dict.get(PROJECT)
-    load_project_data()
+    project = load_project()
 
     predef_pset_dict = main_dict.get(PREDEFINED_PSETS)
     predef_pset_dict = dict() if check_dict(predef_pset_dict, PREDEFINED_PSETS) else predef_pset_dict
@@ -467,7 +473,7 @@ def import_json(project: classes.Project, path: str):
 
     load_parents()
     build_aggregation_structure()
-    return main_dict
+    return project,main_dict
 
 
 DESCRIPTION = "description"
