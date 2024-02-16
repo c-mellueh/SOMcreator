@@ -85,5 +85,6 @@ def create_aggregation_entry(element: classes.Aggregation) -> AggregationDict:
 
 def save(proj: Project, main_dict: MainDict):
     main_dict[AGGREGATIONS] = dict()
+    core.remove_part_of_dict(AGGREGATIONS)
     for aggregation in proj.get_all_aggregations():
         main_dict[AGGREGATIONS][aggregation.uuid] = create_aggregation_entry(aggregation)

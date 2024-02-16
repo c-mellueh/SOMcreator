@@ -13,6 +13,7 @@ parent_dict = dict()
 aggregation_dict = dict()
 phase_list = list()
 use_case_list = list()
+plugin_dict = dict()
 
 
 def open_json(cls: Type[Project], path: str):
@@ -41,11 +42,16 @@ def open_json(cls: Type[Project], path: str):
 
 
 def export_json(proj: Project, path: str) -> dict:
+    SOMcreator.filehandling.plugin_dict = proj.import_dict
+    print(SOMcreator.filehandling.plugin_dict.keys())
     main_dict: MainDict = dict()
     project.create_project_data(proj, main_dict)
     property_set.save_predefined(proj, main_dict)
     obj.save_objects(proj, main_dict)
     aggregation.save(proj, main_dict)
+    print(plugin_dict)
+    main_dict.update(SOMcreator.filehandling.plugin_dict)
+
     with open(path, "w") as file:
         json.dump(main_dict, file)
     return main_dict

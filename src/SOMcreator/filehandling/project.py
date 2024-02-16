@@ -54,6 +54,7 @@ def load_project(cls: Type[Project], main_dict) -> tuple[Project, dict]:
 
 def create_project_data(project, main_dict: MainDict) -> None:
     main_dict[PROJECT] = dict()
+    core.remove_part_of_dict(PROJECT)
     project_dict: ProjectDict = main_dict[PROJECT]
     project_dict[NAME] = project.name
     project_dict[AUTHOR] = project.author

@@ -66,5 +66,7 @@ def create_object_entry(element: classes.Object) -> ObjectDict:
 
 def save_objects(proj:Project,main_dict:MainDict):
     main_dict[OBJECTS] = dict()
+    core.remove_part_of_dict(OBJECTS)
+
     for obj in sorted(proj.get_all_objects(), key=lambda o: o.uuid):
         main_dict[OBJECTS][obj.uuid] = create_object_entry(obj)

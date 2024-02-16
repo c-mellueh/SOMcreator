@@ -1,12 +1,10 @@
 from __future__ import annotations
-import os
-import json
-from typing import Type, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import logging
 from SOMcreator import classes
 import SOMcreator
 from SOMcreator.filehandling.constants import PROJECT_PHASES, USE_CASES, NAME, DESCRIPTION, OPTIONAL, PARENT, \
-    FILTER_MATRIX, PROJECT
+    FILTER_MATRIX
 
 if TYPE_CHECKING:
     from SOMcreator import Project
@@ -115,3 +113,7 @@ def fill_basics(entity_dict: ObjectDict | PropertySetDict | AttributeDict | Aggr
     parent = None if element.parent is None else element.parent.uuid
     entity_dict[PARENT] = parent
     entity_dict[DESCRIPTION] = element.description
+
+
+def remove_part_of_dict(key):
+    SOMcreator.filehandling.plugin_dict.pop(key)
