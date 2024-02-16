@@ -25,7 +25,8 @@ def get_filter_lists(project_dict: ProjectDict):
                 phase_list.append(classes.Phase(phase, phase, ""))
             else:
                 phase_list.append(classes.Phase(phase["name"], phase.get("long_name"), phase.get("description")))
-
+    else:
+        phase_list = [classes.Phase("Stand", "Standard", "Automatisch generiert bitte aktualisieren")]
     if use_cases is not None and isinstance(use_cases, list):
         for use_case in use_cases:
             if isinstance(use_case, str):
@@ -33,6 +34,8 @@ def get_filter_lists(project_dict: ProjectDict):
             else:
                 use_case_list.append(
                     classes.UseCase(use_case["name"], use_case.get("long_name"), use_case.get("description")))
+    else:
+        use_case_list = [classes.UseCase("Stand", "Standard", "Automatisch generiert bitte aktualisieren")]
     return phase_list, use_case_list
 
 
