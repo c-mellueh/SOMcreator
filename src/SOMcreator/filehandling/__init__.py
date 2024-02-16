@@ -4,12 +4,11 @@ import os
 import json
 import SOMcreator
 from .typing import MainDict
-from typing import Type,TYPE_CHECKING
+from typing import Type, TYPE_CHECKING
 from . import constants, core, project, property_set, obj, aggregation
 
 if TYPE_CHECKING:
     from SOMcreator.classes import Project
-
 parent_dict = dict()
 aggregation_dict = dict()
 phase_list = list()
@@ -37,4 +36,16 @@ def open_json(cls: Type[Project], path: str):
 
     aggregation.load_parents()
     aggregation.build_aggregation_structure()
-    return proj, main_dict
+    proj.import_dict = main_dict
+    return proj
+
+
+def export_json(proj: Project, path: str) -> dict:
+    main_dict: MainDict = dict()
+    project.create_project_data(proj, main_dict)
+    property_set.save_predefined(proj, main_dict)
+    obj.save_objects(proj, main_dict)
+    aggregation.save(proj, main_dict)
+    with open(path, "w") as file:
+        json.dump(main_dict, file)
+    return main_dict

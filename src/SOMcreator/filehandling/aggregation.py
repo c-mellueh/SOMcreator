@@ -2,9 +2,17 @@ from __future__ import annotations
 import SOMcreator
 from SOMcreator import classes
 from SOMcreator.filehandling import core
-from SOMcreator.filehandling.constants import OBJECT, CONNECTION, AGGREGATIONS
+from SOMcreator.filehandling.constants import OBJECT, CONNECTION, AGGREGATIONS, PARENT
 from SOMcreator.filehandling.typing import AggregationDict
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from SOMcreator import Project
+    from SOMcreator.filehandling.typing import MainDict
+
+
+### Import ###
 
 def load_parents():
     def find_parent(element: classes.ClassTypes):
@@ -60,3 +68,22 @@ def load(proj: classes.Project, main_dict: dict):
     aggregations_dict = dict() if core.check_dict(aggregations_dict, AGGREGATIONS) else aggregations_dict
     for uuid_ident, entity_dict in aggregations_dict.items():
         load_aggregation(proj, entity_dict, uuid_ident)
+
+
+### Export ###
+def create_aggregation_entry(element: classes.Aggregation) -> AggregationDict:
+    aggregation_dict: AggregationDict = dict()
+    core.fill_basics(aggregation_dict, element)
+    aggregation_dict[OBJECT] = element.object.uuid
+    if element.parent is not None:
+        aggregation_dict[PARENT] = element.parent.uuid
+    else:
+        aggregation_dict[PARENT] = str(element.parent)
+    aggregation_dict[CONNECTION] = element.parent_connection
+    return aggregation_dict
+
+
+def save(proj: Project, main_dict: MainDict):
+    main_dict[AGGREGATIONS] = dict()
+    for aggregation in proj.get_all_aggregations():
+        main_dict[AGGREGATIONS][aggregation.uuid] = create_aggregation_entry(aggregation)

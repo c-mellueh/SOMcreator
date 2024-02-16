@@ -5,12 +5,16 @@ from typing import Type, TYPE_CHECKING
 import logging
 from SOMcreator import classes
 import SOMcreator
-from SOMcreator.filehandling.constants import PROJECT_PHASES, USE_CASES,NAME,DESCRIPTION,OPTIONAL,PARENT,FILTER_MATRIX,PROJECT
-from . import project, property_set, obj, aggregation
+from SOMcreator.filehandling.constants import PROJECT_PHASES, USE_CASES, NAME, DESCRIPTION, OPTIONAL, PARENT, \
+    FILTER_MATRIX, PROJECT
 
 if TYPE_CHECKING:
     from SOMcreator import Project
-    from SOMcreator.filehandling.typing import MainDict, ProjectDict,StandardDict
+    from SOMcreator.filehandling.typing import ProjectDict, StandardDict, ObjectDict, PropertySetDict, AttributeDict, \
+        AggregationDict
+
+
+##### Import #####
 
 def get_filter_lists(project_dict: ProjectDict):
     project_phases = project_dict.get(PROJECT_PHASES)
@@ -34,10 +38,7 @@ def get_filter_lists(project_dict: ProjectDict):
     return phase_list, use_case_list
 
 
-
-
-
-def load_basics(proj:SOMcreator.Project,element_dict: StandardDict) -> tuple[str, str, bool, str, list[list[bool]]]:
+def load_basics(proj: SOMcreator.Project, element_dict: StandardDict) -> tuple[str, str, bool, str, list[list[bool]]]:
     def get_value(d: dict, p: str) -> bool:
         return d.get(p) if d.get(p) is not None else True
 
@@ -88,3 +89,29 @@ def check_dict(d: dict | None, d_name: str) -> bool:
         logging.error(f"loading Error: {d_name} doesn't exist!")
         return True
     return False
+
+
+#### Export ######
+
+def create_filter_matrix(element: classes.ClassTypes):
+    proj = element.project
+    phases = proj.get_project_phase_list()
+    use_cases = proj.get_use_case_list()
+    matrix = list()
+    for phase in phases:
+        phase_list = list()
+        for use_case in use_cases:
+            phase_list.append(element.get_filter_state(phase, use_case))
+        matrix.append(phase_list)
+    return matrix
+
+
+def fill_basics(entity_dict: ObjectDict | PropertySetDict | AttributeDict | AggregationDict,
+                element: classes.ClassTypes) -> None:
+    """function gets called from all Entities"""
+    entity_dict[NAME] = element.name
+    entity_dict[OPTIONAL] = element.optional
+    entity_dict[FILTER_MATRIX] = create_filter_matrix(element)
+    parent = None if element.parent is None else element.parent.uuid
+    entity_dict[PARENT] = parent
+    entity_dict[DESCRIPTION] = element.description

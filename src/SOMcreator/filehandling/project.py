@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING, Type
 if TYPE_CHECKING:
     from SOMcreator import Project
 from .constants import PROJECT, NAME, AUTHOR, VERSION, AGGREGATION_PSET, AGGREGATION_ATTRIBUTE, CURRENT_PR0JECT_PHASE, \
-    CURRENT_USE_CASE, FILTER_MATRIX
+    CURRENT_USE_CASE, FILTER_MATRIX, PROJECT_PHASES, USE_CASES
+from .typing import ProjectDict, FilterDict, MainDict
 from SOMcreator.filehandling import core
+from SOMcreator import classes
 
 
 def load_project(cls: Type[Project], main_dict) -> tuple[Project, dict]:
@@ -48,3 +50,29 @@ def load_project(cls: Type[Project], main_dict) -> tuple[Project, dict]:
         proj.current_use_case = proj.get_use_case_list()[0]
     proj.version = version
     return proj, project_dict
+
+
+def create_project_data(project, main_dict: MainDict) -> None:
+    main_dict[PROJECT] = dict()
+    project_dict: ProjectDict = main_dict[PROJECT]
+    project_dict[NAME] = project.name
+    project_dict[AUTHOR] = project.author
+    project_dict[VERSION] = project.version
+    project_dict[AGGREGATION_ATTRIBUTE] = project.aggregation_attribute
+    project_dict[AGGREGATION_PSET] = project.aggregation_pset
+    project_dict[CURRENT_PR0JECT_PHASE] = project.get_project_phase_list().index(project.current_project_phase)
+    project_dict[CURRENT_USE_CASE] = project.get_use_case_list().index(project.current_use_case)
+    project_dict[PROJECT_PHASES] = create_filter_dict(project.get_project_phase_list())
+    project_dict[USE_CASES] = create_filter_dict(project.get_use_case_list())
+    project_dict[FILTER_MATRIX] = project.get_filter_matrix()
+
+
+def create_filter_dict(filter_list: list[classes.Phase] | list[classes.UseCase]) -> list[FilterDict]:
+    fl = list()
+    for fil in filter_list:
+        fl.append({
+            "name":        fil.name,
+            "long_name":   fil.long_name,
+            "description": fil.description
+        })
+    return fl

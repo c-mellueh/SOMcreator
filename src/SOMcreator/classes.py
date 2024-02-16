@@ -67,6 +67,7 @@ class Project(object):
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
         self._filter_matrix = filter_matrix
+        self.import_dict = dict()
 
         if phases is None:
             self._project_phases = [Phase("Stand", "Standard", "Automatisch generiert. Bitte umbenennen")]
@@ -142,7 +143,7 @@ class Project(object):
         filehandling.create_mapping_script(self, pset_name, path)
 
     @classmethod
-    def open(cls, path: str | os.PathLike) -> tuple[Project,dict]:
+    def open(cls, path: str | os.PathLike) -> Project:
         return filehandling.open_json(cls, path)
 
     def save(self, path: str | os.PathLike) -> dict:
@@ -196,13 +197,13 @@ class Project(object):
     def get_filter_matrix(self) -> list[list[bool]]:
         return self._filter_matrix
 
-    def set_filter_matrix(self,matrix:list[list[bool]]):
+    def set_filter_matrix(self, matrix: list[list[bool]]):
         self._filter_matrix = matrix
 
-    def get_filter_state(self,phase:Phase,use_case:UseCase):
+    def get_filter_state(self, phase: Phase, use_case: UseCase):
         return self._filter_matrix[self.get_phase_index(phase)][self.get_use_case_index(use_case)]
 
-    def set_filter_state(self,phase:Phase,use_case:UseCase,value:bool):
+    def set_filter_state(self, phase: Phase, use_case: UseCase, value: bool):
         self._filter_matrix[self.get_phase_index(phase)][self.get_use_case_index(use_case)] = value
 
     def get_phase_index(self, phase: Phase) -> int | None:
@@ -374,8 +375,8 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._children = set()
         self._name = name
         self._mapping_dict = {
-            value_constants.SHARED_PARAMETERS: True,
-            filehandling.constants.IFC_MAPPING:        True
+            value_constants.SHARED_PARAMETERS:  True,
+            filehandling.constants.IFC_MAPPING: True
         }
         self._description = ""
         if description is not None:

@@ -5,6 +5,10 @@ from SOMcreator.filehandling import core
 from SOMcreator.filehandling.constants import VALUE, VALUE_TYPE, DATA_TYPE, CHILD_INHERITS_VALUE, REVIT_MAPPING
 from SOMcreator.constants.value_constants import OLD_DATATYPE_DICT
 from SOMcreator import filehandling
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from SOMcreator.filehandling.typing import AttributeDict
 
 
 def load_attribute(proj: SOMcreator.Project, attribute_dict: dict, identifier: str,
@@ -26,3 +30,14 @@ def load_attribute(proj: SOMcreator.Project, attribute_dict: dict, identifier: s
                                   description=description, optional=optional, revit_mapping=revit_mapping,
                                   project=proj, filter_matrix=filter_matrix)
     filehandling.parent_dict[attribute] = parent
+
+
+def create_attribute_entry(attribute: classes.Attribute) -> AttributeDict:
+    attribute_dict: AttributeDict = dict()
+    core.fill_basics(attribute_dict, attribute)
+    attribute_dict[DATA_TYPE] = attribute.data_type
+    attribute_dict[VALUE_TYPE] = attribute.value_type
+    attribute_dict[CHILD_INHERITS_VALUE] = attribute.child_inherits_values
+    attribute_dict[REVIT_MAPPING] = attribute.revit_name
+    attribute_dict[VALUE] = attribute.value
+    return attribute_dict
