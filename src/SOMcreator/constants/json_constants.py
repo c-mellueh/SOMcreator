@@ -1,4 +1,4 @@
-from ..filehandling import *
+from ..filehandling.constants import *
 NODE = "Node"
 NODES = "Nodes"
 IS_ROOT = "root"

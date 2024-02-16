@@ -31,7 +31,7 @@ def load(proj: classes.Project, main_dict: dict):
         _get_aggregation(proj, entity_dict, uuid_ident)
 
 
-def build_structure():
+def calculate():
     for aggregation, (uuid, connection_type) in SOMcreator.filehandling.aggregation_dict.items():
         parent = classes.get_element_by_uuid(uuid)
         if parent is None:

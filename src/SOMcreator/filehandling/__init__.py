@@ -38,8 +38,7 @@ def open_json(cls: Type[Project], path: str):
     aggregation.load(proj, main_dict)
 
     inheritance.calculate()
-    aggregation.build_structure()
-    proj.import_dict = main_dict
+    aggregation.calculate()
     proj.plugin_dict = SOMcreator.filehandling.plugin_dict
     return proj
 
