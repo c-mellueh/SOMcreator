@@ -12,6 +12,8 @@ from SOMcreator import classes
 
 def load_project(cls: Type[Project], main_dict) -> tuple[Project, dict]:
     project_dict = main_dict.get(PROJECT)
+    core.remove_part_of_dict(PROJECT)
+
     name = project_dict.get(NAME)
     author = project_dict.get(AUTHOR)
     version = project_dict.get(VERSION)
@@ -54,7 +56,6 @@ def load_project(cls: Type[Project], main_dict) -> tuple[Project, dict]:
 
 def create_project_data(project, main_dict: MainDict) -> None:
     main_dict[PROJECT] = dict()
-    core.remove_part_of_dict(PROJECT)
     project_dict: ProjectDict = main_dict[PROJECT]
     project_dict[NAME] = project.name
     project_dict[AUTHOR] = project.author

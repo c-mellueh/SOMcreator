@@ -34,6 +34,8 @@ def load_object(proj, object_dict: ObjectDict, identifier: str) -> None:
 
 def load(proj: Project, main_dict: dict):
     objects_dict: dict[str, ObjectDict] = main_dict.get(OBJECTS)
+    core.remove_part_of_dict(OBJECTS)
+
     objects_dict = dict() if core.check_dict(objects_dict, OBJECTS) else objects_dict
 
     for uuid_ident, entity_dict in objects_dict.items():
@@ -66,7 +68,6 @@ def create_object_entry(element: classes.Object) -> ObjectDict:
 
 def save_objects(proj:Project,main_dict:MainDict):
     main_dict[OBJECTS] = dict()
-    core.remove_part_of_dict(OBJECTS)
 
     for obj in sorted(proj.get_all_objects(), key=lambda o: o.uuid):
         main_dict[OBJECTS][obj.uuid] = create_object_entry(obj)

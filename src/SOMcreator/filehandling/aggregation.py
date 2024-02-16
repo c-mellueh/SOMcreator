@@ -65,6 +65,7 @@ def build_aggregation_structure():
 
 def load(proj: classes.Project, main_dict: dict):
     aggregations_dict: dict[str, AggregationDict] = main_dict.get(AGGREGATIONS)
+    core.remove_part_of_dict(AGGREGATIONS)
     aggregations_dict = dict() if core.check_dict(aggregations_dict, AGGREGATIONS) else aggregations_dict
     for uuid_ident, entity_dict in aggregations_dict.items():
         load_aggregation(proj, entity_dict, uuid_ident)
@@ -85,6 +86,5 @@ def create_aggregation_entry(element: classes.Aggregation) -> AggregationDict:
 
 def save(proj: Project, main_dict: MainDict):
     main_dict[AGGREGATIONS] = dict()
-    core.remove_part_of_dict(AGGREGATIONS)
     for aggregation in proj.get_all_aggregations():
         main_dict[AGGREGATIONS][aggregation.uuid] = create_aggregation_entry(aggregation)

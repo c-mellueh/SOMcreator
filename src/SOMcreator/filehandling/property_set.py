@@ -23,6 +23,7 @@ def load_pset(proj: Project, pset_dict: PropertySetDict, identifier: str, obj: c
 
 def load_predefined(project: Project, main_dict: MainDict):
     predef_pset_dict = main_dict.get(PREDEFINED_PSETS)
+    core.remove_part_of_dict(PREDEFINED_PSETS)
     predef_pset_dict = dict() if core.check_dict(predef_pset_dict, PREDEFINED_PSETS) else predef_pset_dict
 
     for uuid_ident, entity_dict in predef_pset_dict.items():
@@ -44,6 +45,5 @@ def create_pset_entry(pset: classes.PropertySet) -> PropertySetDict:
 
 def save_predefined(proj: Project, main_dict: MainDict):
     main_dict[PREDEFINED_PSETS] = dict()
-    core.remove_part_of_dict(PREDEFINED_PSETS)
     for predefined_property_set in sorted(proj.get_predefined_psets(), key=lambda x: x.uuid):
         main_dict[PREDEFINED_PSETS][predefined_property_set.uuid] = create_pset_entry(predefined_property_set)

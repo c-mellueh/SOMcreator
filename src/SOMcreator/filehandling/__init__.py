@@ -25,6 +25,9 @@ def open_json(cls: Type[Project], path: str):
     with open(path, "r") as file:
         main_dict: MainDict = json.load(file)
 
+    SOMcreator.filehandling.plugin_dict = main_dict
+
+
     project_dict = main_dict.get(constants.PROJECT)
     SOMcreator.filehandling.phase_list, SOMcreator.filehandling.use_case_list = core.get_filter_lists(project_dict)
 
@@ -38,19 +41,17 @@ def open_json(cls: Type[Project], path: str):
     aggregation.load_parents()
     aggregation.build_aggregation_structure()
     proj.import_dict = main_dict
+    proj.plugin_dict = SOMcreator.filehandling.plugin_dict
     return proj
 
 
 def export_json(proj: Project, path: str) -> dict:
-    SOMcreator.filehandling.plugin_dict = proj.import_dict
-    print(SOMcreator.filehandling.plugin_dict.keys())
     main_dict: MainDict = dict()
     project.create_project_data(proj, main_dict)
     property_set.save_predefined(proj, main_dict)
     obj.save_objects(proj, main_dict)
     aggregation.save(proj, main_dict)
-    print(plugin_dict)
-    main_dict.update(SOMcreator.filehandling.plugin_dict)
+    main_dict.update(proj.plugin_dict)
 
     with open(path, "w") as file:
         json.dump(main_dict, file)

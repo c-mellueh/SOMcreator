@@ -67,7 +67,7 @@ class Project(object):
         self.aggregation_attribute = ""
         self.aggregation_pset = ""
         self._filter_matrix = filter_matrix
-        self.import_dict = dict()
+        self.plugin_dict = dict()
 
         if phases is None:
             self._project_phases = [Phase("Stand", "Standard", "Automatisch generiert. Bitte umbenennen")]
