@@ -25,7 +25,7 @@ def open_json(cls: Type[Project], path: str):
     with open(path, "r") as file:
         main_dict: MainDict = json.load(file)
 
-    SOMcreator.filehandling.plugin_dict = main_dict
+    SOMcreator.filehandling.plugin_dict = dict(main_dict)
 
     project_dict = main_dict.get(constants.PROJECT)
     SOMcreator.filehandling.phase_list, SOMcreator.filehandling.use_case_list = core.get_filter_lists(project_dict)
