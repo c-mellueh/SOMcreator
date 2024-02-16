@@ -375,7 +375,7 @@ class Hirarchy(object, metaclass=IterRegistry):
         self._name = name
         self._mapping_dict = {
             value_constants.SHARED_PARAMETERS: True,
-            json_constants.IFC_MAPPING:        True
+            filehandling.constants.IFC_MAPPING:        True
         }
         self._description = ""
         if description is not None:
