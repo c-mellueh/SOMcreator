@@ -5,7 +5,7 @@ import json
 import SOMcreator
 from .typing import MainDict
 from typing import Type, TYPE_CHECKING
-from . import constants, core, project, property_set, obj, aggregation
+from . import constants, core, project, predefined_pset, property_set, obj, aggregation, inheritance
 
 if TYPE_CHECKING:
     from SOMcreator.classes import Project
@@ -27,19 +27,18 @@ def open_json(cls: Type[Project], path: str):
 
     SOMcreator.filehandling.plugin_dict = main_dict
 
-
     project_dict = main_dict.get(constants.PROJECT)
     SOMcreator.filehandling.phase_list, SOMcreator.filehandling.use_case_list = core.get_filter_lists(project_dict)
 
-    proj, project_dict = project.load_project(cls, main_dict)
-    property_set.load_predefined(proj, main_dict)
+    proj, project_dict = project.load(cls, main_dict)
+    predefined_pset.load(proj, main_dict)
 
     obj.load(proj, main_dict)
 
     aggregation.load(proj, main_dict)
 
-    aggregation.load_parents()
-    aggregation.build_aggregation_structure()
+    inheritance.calculate()
+    aggregation.build_structure()
     proj.import_dict = main_dict
     proj.plugin_dict = SOMcreator.filehandling.plugin_dict
     return proj
@@ -47,12 +46,12 @@ def open_json(cls: Type[Project], path: str):
 
 def export_json(proj: Project, path: str) -> dict:
     main_dict: MainDict = dict()
-    project.create_project_data(proj, main_dict)
-    property_set.save_predefined(proj, main_dict)
-    obj.save_objects(proj, main_dict)
-    aggregation.save(proj, main_dict)
-    main_dict.update(proj.plugin_dict)
+    project.write(proj, main_dict)
+    predefined_pset.write(proj, main_dict)
+    obj.write(proj, main_dict)
+    aggregation.write(proj, main_dict)
 
+    main_dict.update(proj.plugin_dict)
     with open(path, "w") as file:
         json.dump(main_dict, file)
     return main_dict

@@ -10,7 +10,7 @@ from SOMcreator.filehandling import core
 from SOMcreator import classes
 
 
-def load_project(cls: Type[Project], main_dict) -> tuple[Project, dict]:
+def load(cls: Type[Project], main_dict) -> tuple[Project, dict]:
     project_dict = main_dict.get(PROJECT)
     core.remove_part_of_dict(PROJECT)
 
@@ -54,7 +54,7 @@ def load_project(cls: Type[Project], main_dict) -> tuple[Project, dict]:
     return proj, project_dict
 
 
-def create_project_data(project, main_dict: MainDict) -> None:
+def write(project, main_dict: MainDict) -> None:
     main_dict[PROJECT] = dict()
     project_dict: ProjectDict = main_dict[PROJECT]
     project_dict[NAME] = project.name
@@ -64,12 +64,12 @@ def create_project_data(project, main_dict: MainDict) -> None:
     project_dict[AGGREGATION_PSET] = project.aggregation_pset
     project_dict[CURRENT_PR0JECT_PHASE] = project.get_project_phase_list().index(project.current_project_phase)
     project_dict[CURRENT_USE_CASE] = project.get_use_case_list().index(project.current_use_case)
-    project_dict[PROJECT_PHASES] = create_filter_dict(project.get_project_phase_list())
-    project_dict[USE_CASES] = create_filter_dict(project.get_use_case_list())
+    project_dict[PROJECT_PHASES] = _write_filter_dict(project.get_project_phase_list())
+    project_dict[USE_CASES] = _write_filter_dict(project.get_use_case_list())
     project_dict[FILTER_MATRIX] = project.get_filter_matrix()
 
 
-def create_filter_dict(filter_list: list[classes.Phase] | list[classes.UseCase]) -> list[FilterDict]:
+def _write_filter_dict(filter_list: list[classes.Phase] | list[classes.UseCase]) -> list[FilterDict]:
     fl = list()
     for fil in filter_list:
         fl.append({

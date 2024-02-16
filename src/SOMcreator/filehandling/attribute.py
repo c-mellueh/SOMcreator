@@ -11,9 +11,9 @@ if TYPE_CHECKING:
     from SOMcreator.filehandling.typing import AttributeDict
 
 
-def load_attribute(proj: SOMcreator.Project, attribute_dict: dict, identifier: str,
-                   property_set: classes.PropertySet, ) -> None:
-    name, description, optional, parent, filter_matrix = core.load_basics(proj, attribute_dict)
+def load(proj: SOMcreator.Project, attribute_dict: dict, identifier: str,
+         property_set: classes.PropertySet, ) -> None:
+    name, description, optional, parent, filter_matrix = core.get_basics(proj, attribute_dict)
     value = attribute_dict[VALUE]
     value_type = attribute_dict[VALUE_TYPE]
     data_type = attribute_dict[DATA_TYPE]
@@ -32,9 +32,9 @@ def load_attribute(proj: SOMcreator.Project, attribute_dict: dict, identifier: s
     filehandling.parent_dict[attribute] = parent
 
 
-def create_attribute_entry(attribute: classes.Attribute) -> AttributeDict:
+def write(attribute: classes.Attribute) -> AttributeDict:
     attribute_dict: AttributeDict = dict()
-    core.fill_basics(attribute_dict, attribute)
+    core.write_basics(attribute_dict, attribute)
     attribute_dict[DATA_TYPE] = attribute.data_type
     attribute_dict[VALUE_TYPE] = attribute.value_type
     attribute_dict[CHILD_INHERITS_VALUE] = attribute.child_inherits_values

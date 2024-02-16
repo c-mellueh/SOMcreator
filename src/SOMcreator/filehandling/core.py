@@ -36,7 +36,7 @@ def get_filter_lists(project_dict: ProjectDict):
     return phase_list, use_case_list
 
 
-def load_basics(proj: SOMcreator.Project, element_dict: StandardDict) -> tuple[str, str, bool, str, list[list[bool]]]:
+def get_basics(proj: SOMcreator.Project, element_dict: StandardDict) -> tuple[str, str, bool, str, list[list[bool]]]:
     def get_value(d: dict, p: str) -> bool:
         return d.get(p) if d.get(p) is not None else True
 
@@ -89,9 +89,18 @@ def check_dict(d: dict | None, d_name: str) -> bool:
     return False
 
 
+def remove_part_of_dict(key):
+    """
+    Removes part of plugin dict if its saved in Core
+    :param key:
+    :return:
+    """
+    SOMcreator.filehandling.plugin_dict.pop(key)
+
+
 #### Export ######
 
-def create_filter_matrix(element: classes.ClassTypes):
+def write_filter_matrix(element: classes.ClassTypes):
     proj = element.project
     phases = proj.get_project_phase_list()
     use_cases = proj.get_use_case_list()
@@ -104,16 +113,12 @@ def create_filter_matrix(element: classes.ClassTypes):
     return matrix
 
 
-def fill_basics(entity_dict: ObjectDict | PropertySetDict | AttributeDict | AggregationDict,
-                element: classes.ClassTypes) -> None:
+def write_basics(entity_dict: ObjectDict | PropertySetDict | AttributeDict | AggregationDict,
+                 element: classes.ClassTypes) -> None:
     """function gets called from all Entities"""
     entity_dict[NAME] = element.name
     entity_dict[OPTIONAL] = element.optional
-    entity_dict[FILTER_MATRIX] = create_filter_matrix(element)
+    entity_dict[FILTER_MATRIX] = write_filter_matrix(element)
     parent = None if element.parent is None else element.parent.uuid
     entity_dict[PARENT] = parent
     entity_dict[DESCRIPTION] = element.description
-
-
-def remove_part_of_dict(key):
-    SOMcreator.filehandling.plugin_dict.pop(key)
