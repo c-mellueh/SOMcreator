@@ -115,7 +115,7 @@ class Project(object):
     def get_predefined_psets(self) -> set[PropertySet]:
         return set(filter(lambda p: p.is_predefined, self.get_all_property_sets()))
 
-    def get_main_attribute(self) -> (str, str):
+    def get_main_attribute(self) -> tuple[str, str]:
         ident_attributes = dict()
         ident_psets = dict()
         for obj in self.objects:
