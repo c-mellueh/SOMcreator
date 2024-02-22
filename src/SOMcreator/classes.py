@@ -82,9 +82,7 @@ class Project(object):
             self._use_cases = use_case
 
         if filter_matrix is None:
-            self._filter_matrix = list()
-            for _ in self._project_phases:
-                self._filter_matrix.append([True for __ in self._use_cases])
+            self._filter_matrix = self.create_filter_matrix(True)
 
         self._current_use_case = self._use_cases[0]
         self.change_log = list()
@@ -140,7 +138,6 @@ class Project(object):
     def get_object_by_identifier(self, identifier: str) -> Object | None:
         return {obj.ident_value: obj for obj in self.get_all_objects()}.get(identifier)
 
-
     @classmethod
     def open(cls, path: str | os.PathLike) -> Project:
         return filehandling.open_json(cls, path)
@@ -192,6 +189,12 @@ class Project(object):
         return base
 
     # UseCase / ProjectPhase Handling
+
+    def create_filter_matrix(self, value: bool = True):
+        filter_matrix = list()
+        for _ in self._project_phases:
+            filter_matrix.append([value for __ in self._use_cases])
+        return filter_matrix
 
     def get_filter_matrix(self) -> list[list[bool]]:
         return self._filter_matrix
