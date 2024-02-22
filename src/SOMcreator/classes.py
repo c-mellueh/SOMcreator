@@ -140,8 +140,6 @@ class Project(object):
     def get_object_by_identifier(self, identifier: str) -> Object | None:
         return {obj.ident_value: obj for obj in self.get_all_objects()}.get(identifier)
 
-    def create_mapping_script(self, pset_name: str, path: str) -> None:
-        filehandling.create_mapping_script(self, pset_name, path)
 
     @classmethod
     def open(cls, path: str | os.PathLike) -> Project:
@@ -1154,7 +1152,7 @@ class Aggregation(Hirarchy):
         return self.id_group() + "_" + self.object.abbreviation + "_xxx"
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ProjectFilter:
     name: str
     long_name: str = field(compare=False)
