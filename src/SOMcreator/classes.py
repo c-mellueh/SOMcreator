@@ -9,7 +9,7 @@ import copy as cp
 from anytree import AnyNode
 
 from . import filehandling
-from .constants import value_constants, json_constants
+from .constants import value_constants
 from dataclasses import dataclass, field
 
 
@@ -513,6 +513,7 @@ class Hirarchy(object, metaclass=IterRegistry):
     def remove_child(self, child: PropertySet | Object | Attribute | Aggregation | Hirarchy) -> None:
         if child in self._children:
             self._children.remove(child)
+            child.remove_parent()
 
     def delete(self, recursive: bool = False) -> None:
         logging.info(f"Delete {self.__class__.__name__} {self.name} (recursive: {recursive})")
@@ -790,6 +791,12 @@ class PropertySet(Hirarchy):
             self.remove_parent()
             return
         self._parent = parent
+
+    def remove_child(self, child: PropertySet) -> None:
+        super().remove_child(child)
+        child.remove_parent()
+        for attribute in [a for a in child.attributes if a.parent]:
+            attribute.parent.remove_child(attribute)
 
     def change_parent(self, new_parent: PropertySet) -> None:
         for attribute in self.attributes:
@@ -1100,10 +1107,6 @@ class Aggregation(Hirarchy):
         self._parent = value
         self._parent_connection = connection_type
         return True
-
-    def remove_child(self, value: Aggregation):
-        if value in self._children:
-            self._children.remove(value)
 
     def add_child(self, child: Aggregation, connection_type: int = value_constants.AGGREGATION) -> bool:
         """returns if adding child is allowed"""
