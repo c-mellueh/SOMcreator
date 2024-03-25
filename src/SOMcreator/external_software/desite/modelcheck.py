@@ -7,8 +7,8 @@ import uuid
 from xml.etree.ElementTree import Element
 
 import jinja2
-from anytree import AnyNode
 from lxml import etree
+from typing import TypedDict
 
 from . import handle_header, output_date_time
 from ...constants.value_constants import XS_DATATYPE_DICT
@@ -19,6 +19,10 @@ from ...constants import json_constants, value_constants
 
 JS_EXPORT = "JS"
 TABLE_EXPORT = "TABLE"
+
+
+class ObjectStructureDict(TypedDict):
+    children: set[classes.Object]
 
 
 def _handle_template(path: str | os.PathLike) -> jinja2.Template:
@@ -143,10 +147,11 @@ def _handle_attribute_rule_tree(xml_rule: Element) -> Element:
     return attribute_rule_tree
 
 
-def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_container, parent_node: AnyNode, template,
+def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_container,
+                           object_structure: dict[classes.Object, set[classes.Object]], parent_obj: classes.Object,
+                           template,
                            xml_object_dict, export_type: str) -> None:
-    def check_basics(node):
-        obj: classes.Object = node.obj
+    def check_basics(obj: classes.Object):
         if obj.ident_attrib is None:
             return obj, None, True
 
@@ -155,18 +160,20 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
             return obj, None, True
         return obj, pset_dict, False
 
-    def create_container(xml_container, node: AnyNode):
-        new_xml_container = _handle_container(xml_container, node.obj.name)
+    def create_container(xml_container):
+        new_xml_container = _handle_container(xml_container, parent_obj.name)
         if export_type == JS_EXPORT:
-            create_js_object(new_xml_container, parent_node)
+            create_js_object(new_xml_container)
         elif export_type == TABLE_EXPORT:
-            create_table_object(new_xml_container, parent_node)
-        for child_node in sorted(node.children, key=lambda x: x.id):
-            _handle_tree_structure(author, required_data_dict, new_xml_container, child_node, template, xml_object_dict,
+            create_table_object(new_xml_container)
+        children = object_structure.get(parent_obj)
+        for child_obj in sorted(children, key=lambda x: x.name):
+            _handle_tree_structure(author, required_data_dict, new_xml_container, object_structure, child_obj, template,
+                                   xml_object_dict,
                                    export_type)
 
-    def create_js_object(xml_container, node: AnyNode):
-        obj, pset_dict, abort = check_basics(node)
+    def create_js_object(xml_container):
+        obj, pset_dict, abort = check_basics(parent_obj)
         if abort:
             return
         xml_checkrun = _handle_checkrun(xml_container, obj.name, author)
@@ -181,8 +188,8 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
 
         xml_object_dict[xml_checkrun] = obj
 
-    def create_table_object(xml_container, node: AnyNode):
-        obj, pset_dict, abort = check_basics(node)
+    def create_table_object(xml_container):
+        obj, pset_dict, abort = check_basics(parent_obj)
         if abort:
             return
         xml_checkrun = _handle_checkrun(xml_container, obj.name, author)
@@ -196,13 +203,13 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
 
         xml_object_dict[xml_checkrun] = obj
 
-    if parent_node.children:
-        create_container(parent_xml_container, parent_node)
+    if object_structure.get(parent_obj) and required_data_dict.get(parent_obj):
+        create_container(parent_xml_container)
     else:
         if export_type == JS_EXPORT:
-            create_js_object(parent_xml_container, parent_node)
+            create_js_object(parent_xml_container)
         elif export_type == TABLE_EXPORT:
-            create_table_object(parent_xml_container, parent_node)
+            create_table_object(parent_xml_container)
 
 
 def _csv_value_in_list(attribute: classes.Attribute):
@@ -272,14 +279,17 @@ def _handle_rule_items_by_pset_dict(pset_dict: dict[classes.PropertySet, list[cl
         _handle_rule_item_pset(attribute_rule_tree, pset, attribute_list)
 
 
-def _handle_object_rules(author: str, required_data_dict: dict, project_tree: AnyNode, base_xml_container: Element,
+def _handle_object_rules(author: str, required_data_dict: dict,
+                         object_structure: dict[classes.Object, set[classes.Object]],
+                         base_xml_container: Element,
                          template: jinja2.Template, export_type: str) -> dict[Element, classes.Object]:
     xml_object_dict: dict[Element, classes.Object] = dict()
 
-    root_nodes = project_tree.children
+    root_nodes = {obj for obj, value in object_structure.items() if not value}
 
-    for root_node in sorted(root_nodes, key=lambda x: x.id):
-        _handle_tree_structure(author, required_data_dict, base_xml_container, root_node, template, xml_object_dict,
+    for root_node in sorted(root_nodes, key=lambda x: x.name):
+        _handle_tree_structure(author, required_data_dict, base_xml_container, object_structure, root_node, template,
+                               xml_object_dict,
                                export_type)
     return xml_object_dict
 
@@ -369,7 +379,6 @@ def _handle_attribute_rule(attribute: classes.Attribute) -> str:
 def _fast_object_check(main_pset: str, main_attrib: str, author: str, required_data_dict: dict,
                        base_xml_container: Element,
                        template: jinja2.Template) -> dict[Element, None]:
-    xml_object_dict: dict[Element, classes.Object] = dict()
     xml_checkrun = _handle_checkrun(base_xml_container, "Main Check", author)
     xml_rule = _handle_rule(xml_checkrun, "Attributes")
     xml_attribute_rule_list = _handle_attribute_rule_list(xml_rule)
@@ -397,25 +406,18 @@ def build_full_data_dict(proj: classes.Project) -> dict[
 
 def export(project: classes.Project,
            required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]],
-           path: str, main_pset: str, main_attribute: str, project_tree: AnyNode = None,
+           path: str, main_pset: str, main_attribute: str,
+           object_structure: dict[classes.Object, set[classes.Object]] = None,
            export_type: str = "JS") -> None:
-    """
+    if not object_structure:
+        object_structure = {o: o.children for o in project.objects}
 
-    :param project:
-    :param required_data_dict:
-    :param path:
-    :param project_tree:
-    :param export_type: either JS or TABLE
-    :return:
-    """
-
-    if project_tree is None:
-        project_tree = project.tree()
     template = _handle_template(Template.TEMPLATE)
     xml_container, xml_qa_export = _init_xml(project.author, project.name, project.version)
     xml_checkrun_first, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "initial_tests")
     _handle_js_rules(xml_attribute_rule_list, "start")
-    xml_checkrun_obj = _handle_object_rules(project.author, required_data_dict, project_tree, xml_container, template,
+    xml_checkrun_obj = _handle_object_rules(project.author, required_data_dict, object_structure, xml_container,
+                                            template,
                                             export_type)
     xml_checkrun_last, xml_attribute_rule_list = _define_xml_elements(project.author, xml_container, "untested")
     _handle_untested(xml_attribute_rule_list, main_pset, main_attribute)
@@ -455,6 +457,8 @@ def fast_check(project: classes.Project, main_pset: str, main_attrib: str,
     """
     creates a single rule for all elements -> no containers for checkruns
     :param project:
+    :param main_pset: name of main propertyset which is used as matchkey
+    :param main_attrib: name of main Attribute wihich is used as matchkey
     :param required_data_dict: Dictionary of all required Objects, Propertysets and Attributes
     :param path: Export Path
     :return:
