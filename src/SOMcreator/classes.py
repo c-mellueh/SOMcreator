@@ -959,34 +959,30 @@ class Attribute(Hirarchy):
             child.name = value
 
     @property
+    def is_inheriting_values(self) -> bool:
+        if self.parent is None:
+            return False
+        if self.parent.is_inheriting_values or self.parent.child_inherits_values:
+            return True
+        return False
+
+    @property
     def value(self) -> list:
+        if self.is_inheriting_values:
+            return self.parent.value + self._value
         return self._value
 
     @value.setter
-    def value(self, value: list) -> None:
-        def can_be_changed() -> bool:
-            change_bool = True
-            if self.is_child:
-                parent: Attribute = self.parent
-                if parent.child_inherits_values:
-                    change_bool = False
-            return change_bool
+    def value(self, values: list) -> None:
+        if self.is_inheriting_values:
+            own_values = list()
+            for value in values:
+                if value not in self.parent.value:
+                    own_values.append(values)
 
-        new_value = []
-
-        for el in value:
-            if isinstance(el, str):
-                if "|" in el:
-                    el = el.split("|")
-                    for item in el:
-                        new_value.append(item)
-                else:
-                    new_value.append(el)
-            else:
-                new_value.append(el)
-
-        if can_be_changed():
-            self._value = new_value
+            self._value = own_values
+        else:
+            self._value = values
 
     @property
     def value_type(self) -> str:
