@@ -288,9 +288,10 @@ class Project(object):
         if phase is None:
             return
         index = self.get_phase_index(phase)
-        self._project_phases.remove(phase)
         for item in self.get_all_hirarchy_items():
             item.remove_project_phase(phase)
+
+        self._project_phases.remove(phase)
         self._filter_matrix.pop(index)
 
     def remove_use_case(self, use_case_name: str) -> None:

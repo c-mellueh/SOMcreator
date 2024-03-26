@@ -13,7 +13,6 @@ from typing import TypedDict
 from . import handle_header, output_date_time
 from ...constants.value_constants import XS_DATATYPE_DICT
 from ..bim_collab_zoom.rule import merge_list
-from ... import __version__
 from ... import classes, constants, Template
 from ...constants import json_constants, value_constants
 
@@ -430,6 +429,7 @@ def export(project: classes.Project,
 
 
 def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet, list[classes.Attribute]]], path):
+    from ... import __version__
     lines = list()
     lines.append(";".join(["#", f"Created by SOMcreator v{__version__}"]))
     lines.append("H;Property Name;;Data Type;Rule;Comment")
