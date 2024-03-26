@@ -82,6 +82,22 @@ def get_basics(proj: SOMcreator.Project, element_dict: StandardDict) -> tuple[st
             for use_case_index, use_case in enumerate(output_use_cases):
                 pl.append(bool(output_phases[phase_index] and output_use_cases[use_case_index]))
             matrix.append(pl)
+
+    phase_count = len(SOMcreator.filehandling.phase_list)
+    use_case_count = len(SOMcreator.filehandling.use_case_list)
+
+    if phase_count > len(matrix):
+        for _ in range(phase_count - len(matrix)):
+            matrix.append([True for _ in range(use_case_count)])
+    elif phase_count < len(matrix):
+        matrix = matrix[:phase_count]
+
+    for phase_index, use_case_list in enumerate(matrix):
+        if use_case_count > len(use_case_list):
+            [use_case_list.append(True) for _ in range(use_case_count - len(use_case_list))]
+        elif use_case_count < len(use_case_list):
+            use_case_list = use_case_list[:use_case_count]
+        matrix[phase_index] = use_case_list
     return name, description, optional, parent, matrix
 
 
