@@ -15,6 +15,8 @@ if (isContainer == true && isComposite == false) {
     var pset_dict = get_property_set_dict(id);
     var checkfailed = 0;
     var attrib_count =0;
+    var object_not_checked = false;
+
 var ident_value = desiteAPI.getPropertyValue(id,"{{main_pset}}:{{main_attrib}}","xs:string");
 switch(ident_value){
 {% for obj in object_dict %}
@@ -35,13 +37,7 @@ case "{{ obj.ident_value}}":
         returnFormat= '{{xs_dict[attribute.data_type]}}';
         existingData = pset_dict[propertySetName][attributeName]
         {%if attribute.value_type == constants.LIST%}
-        var list = [
-        {%-for value in attribute.value%}
-        {%-if not loop.index==1%} ,'{{value}}'
-        {%-else-%}
-        '{{value}}'
-        {%-endif-%}
-        {%-endfor%}]
+        var list = {{attribute.value}};
         {%if attribute.value ==[]%}
         //Kontrolliert ob Attribut "{{attribute.property_set.name}}:{{attribute.name}}" existiert
         checkfailed +=check_exist(attributeName, propertySetName, returnFormat, existingData)
@@ -73,8 +69,15 @@ case "{{ obj.ident_value}}":
 
     break;
 {% endfor %}
+default:
+    object_not_checked = true;
 }
 
+    if (object_not_checked == true){
+        desiteResult.setCheckState('ignored');
+
+    }
+    else{
 
     //-------------------------------------------------------------------------------------------
     //--------------------------------------Auswertung-------------------------------------------
@@ -100,4 +103,5 @@ case "{{ obj.ident_value}}":
     desiteAPI.setPropertyValue(id, "zu_pruefende_eigenschaften","xs:int",attrib_count);
     desiteAPI.setPropertyValue(id, "fehlerhafte_eigenschaften","xs:int",checkfailed);
 
+    }
 }

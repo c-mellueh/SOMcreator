@@ -14,7 +14,7 @@ function check_for_single(value, range) {
     return treffer
 }
 
-function check_range(attribute_name, property_set_name, return_format, range,existing_data) {
+function check_range(attribute_name, property_set_name, return_format, range, existing_data) {
     //Kontrolliert, ob sich 	 pSet+name in einem Bestimmten Wertebereich bewegen
 
     //range[*][0] -> untere Grenze
@@ -27,8 +27,6 @@ function check_range(attribute_name, property_set_name, return_format, range,exi
     var text4 = '" ( Wert ist : ';
     var text5 = "[Fehler ";
     var svalue = property_set_name + attribute_name;
-
-
 
 
     //Kontrolle, ob Attribut existiert
@@ -90,7 +88,7 @@ function check_format(attribute_name, property_set_name, return_format, format_l
 
 
     //Kontrolle, ob Attribut existiert
-    if (check_exist(attribute_name, property_set_name, return_format, existing_data)===1){
+    if (check_exist(attribute_name, property_set_name, return_format, existing_data) === 1) {
         return 1
     }
 
@@ -125,7 +123,7 @@ function check_exist(attribute_name, property_set_name, return_format, existing_
     var text2 = ' nicht vorhanden! ';
     var text3 = "[Fehler ";
     var text4 = " besitzt den falschen Datentyp! ";
-    var svalue = property_set_name+ ":" + attribute_name;
+    var svalue = property_set_name + ":" + attribute_name;
 
 
     //Kontrolle, ob Attribut existiert
@@ -170,34 +168,39 @@ function check_for_value(attribute_name, property_set_name, return_format, list,
     if (list.indexOf(value) !== -1) {
         return 0
     }
-
-    //Kontrolle, durch welchen Seperator die Liste getrennt ist -> Liste dementsprechend aufteilen
-    if (value.indexOf(",") !== -1) {
-        var val_list = value.split(",")
-    } else if (value.indexOf("/") != -1) {
-        var val_list = value.split("/")
-    }
-    //Wenn keine Trennzeichen vorhanden sind, besteht die Liste aus einem Element
-    else {
-        val_list = [value]
-    }
-
-    for (i in val_list) {
-
-        val_list[i] = val_list[i].trim(); //evtl. Leerzeichen am Anfang und Ende beseitigen
-
-
-        //Kontrolle, ob Das Element aus val_list in list enthalten ist (Case-insensitive)
-        if (list.indexOf(val_list[i]) === -1) {
-            desiteResult.addMessage(text1 + svalue + '" (' + value + ") " + text3 + text5 + "1]");
-            error += 1;
+    if (typeof (value) == "string") {
+        //Kontrolle, durch welchen Seperator die Liste getrennt ist -> Liste dementsprechend aufteilen
+        if (value.indexOf(",") !== -1) {
+            var val_list = value.split(",")
+        } else if (value.indexOf("/") != -1) {
+            var val_list = value.split("/")
         }
+        //Wenn keine Trennzeichen vorhanden sind, besteht die Liste aus einem Element
+        else {
+            val_list = [value]
+        }
+
+        for (i in val_list) {
+
+            val_list[i] = val_list[i].trim(); //evtl. Leerzeichen am Anfang und Ende beseitigen
+
+
+            //Kontrolle, ob Das Element aus val_list in list enthalten ist (Case-insensitive)
+            if (list.indexOf(val_list[i]) === -1) {
+                desiteResult.addMessage(text1 + svalue + '" (' + value + ") " + text3 + text5 + "1]");
+                error += 1;
+            }
+        }
+        //Wenn alle Werte in liste enthalten sind, ist die Prüfung erfolgreich abgeschlossen
+        if (error === 0) {
+            return 0;
+        } else {
+            return 1;
+        }
+    } else {
+        desiteResult.addMessage(text1 + svalue + '" (' + value + ") " + text3 + text5 + "1]");
+        return 1;
     }
-    //Wenn alle Werte in liste enthalten sind, ist die Prüfung erfolgreich abgeschlossen
-    if (error === 0) {
-        return 0;
-    }
-    else { return 1 }
 }
 
 function get_property_set_dict(id) {
