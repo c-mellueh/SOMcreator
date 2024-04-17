@@ -970,7 +970,8 @@ class Attribute(Hirarchy):
     @property
     def value(self) -> list:
         if self.is_inheriting_values:
-            return self.parent.value + self._value
+            values = [v for v in self._value if v not in self.parent.value]
+            return self.parent.value + values
         return self._value
 
     @value.setter
@@ -979,8 +980,7 @@ class Attribute(Hirarchy):
             own_values = list()
             for value in values:
                 if value not in self.parent.value:
-                    own_values.append(values)
-
+                    own_values.append(value)
             self._value = own_values
         else:
             self._value = values
