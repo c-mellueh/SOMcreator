@@ -117,7 +117,7 @@ class Project(object):
         ident_attributes = dict()
         ident_psets = dict()
         for obj in self.objects:
-            if obj.ident_attrib is None:
+            if not isinstance(obj.ident_attrib, Attribute):
                 continue
             ident_pset = obj.ident_attrib.property_set.name
             ident_attribute = obj.ident_attrib.name
