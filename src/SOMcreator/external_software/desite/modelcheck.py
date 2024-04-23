@@ -361,18 +361,21 @@ def _handle_untested(xml_attribute_rule_list: etree.Element, main_pset: str, mai
 
 def _handle_attribute_rule(attribute: classes.Attribute) -> str:
     data_type = XS_DATATYPE_DICT[attribute.data_type]
+    pset_name = attribute.property_set.name
+
     if attribute.value_type == value_constants.RANGE:
-        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", data_type, "*",
-                          f"Pruefung"])
+        row = ["R", "", f"{pset_name}:{attribute.name}", data_type, "*", f"Pruefung"]
+        return ";".join(row)
 
     if not attribute.value:
-        return "; ".join(["R", "", f"{attribute.property_set.name}:{attribute.name}", data_type, "*",
-                          f"Pruefung"])
+        row = ["R", "", f"{pset_name}:{attribute.name}", data_type, "*", f"Pruefung"]
+        return ";".join(row)
 
-    return "; ".join(
-        ["R", "", f"{attribute.property_set.name}:{attribute.name}", data_type,
-         " ".join([f'"{str(v)}"' for v in attribute.value]),
-         f"Pruefung"])
+    ident_text = f"{pset_name}:{attribute.name}"
+    allowed_values = " ".join([f"'{str(v)}'" for v in attribute.value])
+    row = ["R", "", ident_text, data_type, allowed_values, f"Pruefung"]
+
+    return ";".join(row)
 
 
 def _fast_object_check(main_pset: str, main_attrib: str, author: str, required_data_dict: dict,
@@ -440,7 +443,7 @@ def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet
         ident_attrib = f"{obj.ident_attrib.property_set.name}:{obj.ident_attrib.name}"
         data_type = XS_DATATYPE_DICT[obj.ident_attrib.data_type]
         lines.append(";".join(
-            ["C", ident_attrib, "", data_type, obj.ident_value, f"Nach Objekt {obj.name} filtern"]))
+            ["C", ident_attrib, "", data_type, f"'{obj.ident_value}'", f"Nach Objekt {obj.name} filtern"]))
 
         for pset, attribute_list in pset_dict.items():
             for attribute in attribute_list:
