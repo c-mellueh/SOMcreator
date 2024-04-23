@@ -20,7 +20,7 @@ def open_json(cls: Type[Project], path: str):
     SOMcreator.filehandling.parent_dict = dict()
 
     if not os.path.isfile(path):
-        return
+        raise FileNotFoundError(f"File '{path}' does not exist!")
 
     with open(path, "r") as file:
         main_dict: MainDict = json.load(file)
