@@ -11,7 +11,7 @@ from lxml import etree
 from typing import TypedDict
 
 from . import handle_header, output_date_time
-from ...constants.value_constants import XS_DATATYPE_DICT
+from ...external_software import xml
 from ..bim_collab_zoom.rule import merge_list
 from ... import classes, constants, Template
 from ...constants import json_constants, value_constants
@@ -181,7 +181,7 @@ def _handle_tree_structure(author: str, required_data_dict: dict, parent_xml_con
         xml_rule_script = _handle_rule_script(xml_attribute_rule_list, name=obj.name)
         xml_code = _handle_code(xml_rule_script)
         cdata_code = template.render(pset_dict=pset_dict, constants=value_constants,
-                                     ignore_pset=json_constants.IGNORE_PSET, xs_dict=XS_DATATYPE_DICT)
+                                     ignore_pset=json_constants.IGNORE_PSET, xs_dict=xml.DATA_TYPE_MAPPING_DICT)
         xml_code.text = cdata_code
         _handle_rule(xml_checkrun, "UniquePattern")
 
@@ -226,7 +226,7 @@ def _csv_check_range(attribute: classes.Attribute) -> str:
 def _build_basics_rule_item(xml_parent: etree.Element, attribute: classes.Attribute) -> etree.Element:
     xml_attrib = etree.SubElement(xml_parent, "ruleItem")
     xml_attrib.set("ID", attribute.uuid)
-    data_type = XS_DATATYPE_DICT[attribute.data_type]
+    data_type = xml.transform_data_format(attribute.data_type)
     xml_attrib.set("name", f"{attribute.property_set.name}:{attribute.name}##{data_type}")
     xml_attrib.set("type", "simple")
     return xml_attrib
@@ -360,7 +360,7 @@ def _handle_untested(xml_attribute_rule_list: etree.Element, main_pset: str, mai
 
 
 def _handle_attribute_rule(attribute: classes.Attribute) -> str:
-    data_type = XS_DATATYPE_DICT[attribute.data_type]
+    data_type = xml.transform_data_format(attribute.data_type)
     pset_name = attribute.property_set.name
 
     if attribute.value_type == value_constants.RANGE:
@@ -388,7 +388,7 @@ def _fast_object_check(main_pset: str, main_attrib: str, author: str, required_d
     xml_code = _handle_code(xml_rule_script)
     cdata_code = template.render(object_dict=required_data_dict, main_pset=main_pset, main_attrib=main_attrib,
                                  constants=value_constants,
-                                 ignore_pset=json_constants.IGNORE_PSET, xs_dict=XS_DATATYPE_DICT)
+                                 ignore_pset=json_constants.IGNORE_PSET, xs_dict=xml.DATA_TYPE_MAPPING_DICT)
     xml_code.text = cdata_code
     _handle_rule(xml_checkrun, "UniquePattern")
     return {xml_checkrun: None}
@@ -441,7 +441,7 @@ def csv_export(required_data_dict: dict[classes.Object, dict[classes.PropertySet
         if obj.ident_attrib is None:
             continue
         ident_attrib = f"{obj.ident_attrib.property_set.name}:{obj.ident_attrib.name}"
-        data_type = XS_DATATYPE_DICT[obj.ident_attrib.data_type]
+        data_type = xml.transform_data_format(obj.ident_attrib.data_type)
         lines.append(";".join(
             ["C", ident_attrib, "", data_type, f"'{obj.ident_value}'", f"Nach Objekt {obj.name} filtern"]))
 
