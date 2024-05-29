@@ -8,7 +8,7 @@ from lxml.etree import Element, ElementTree, SubElement
 from . import ids_xsd, xml_xsd
 from ... import classes
 from ...constants import value_constants, ifc_datatypes
-
+from ..xml import transform_data_format
 NSMAP = {None: ids_xsd.DEFAULT_NS[1:-1],
          "xs": xml_xsd.NS_XS[1:-1],
          "xsi": xml_xsd.NS_XSI[1:-1]}
@@ -71,7 +71,7 @@ def _build_attribute_requirement(attribute: classes.Attribute, xml_parent: Eleme
         return
     xml_value = SubElement(xml_property, ids_xsd.VALUE, nsmap=NSMAP)
     xml_restriction = SubElement(xml_value, xml_xsd.RESTRICTION, nsmap=NSMAP)
-    xml_restriction.set(xml_xsd.BASE, value_constants.XS_DATATYPE_DICT[attribute.data_type])
+    xml_restriction.set(xml_xsd.BASE, transform_data_format(attribute.data_type))
 
     if attribute.value_type == value_constants.LIST:
         for value in attribute.value:
