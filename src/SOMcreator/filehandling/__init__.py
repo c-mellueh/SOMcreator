@@ -73,13 +73,17 @@ def open_json(cls: Type[Project], path: str):
 
 
 def export_json(proj: Project, path: str) -> dict:
+    main_dict = create_export_dict(proj)
+    with open(path, "w") as file:
+        json.dump(main_dict, file)
+    return main_dict
+
+
+def create_export_dict(proj: Project):
     main_dict: MainDict = dict()
     project.write(proj, main_dict)
     predefined_pset.write(proj, main_dict)
     obj.write(proj, main_dict)
     aggregation.write(proj, main_dict)
-
     main_dict.update(proj.plugin_dict)
-    with open(path, "w") as file:
-        json.dump(main_dict, file)
     return main_dict
