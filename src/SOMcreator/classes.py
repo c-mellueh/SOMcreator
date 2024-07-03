@@ -700,7 +700,7 @@ class Object(Hirarchy):
         if property_set in self._property_sets:
             self._property_sets.remove(property_set)
 
-    def get_attributes(self, inherit: bool = False) -> list[Attribute]:
+    def get_all_attributes(self, inherit: bool = False) -> list[Attribute]:
         attributes = list()
         for property_set in self.property_sets:
             attributes += property_set.attributes
@@ -709,6 +709,10 @@ class Object(Hirarchy):
             attributes += self.parent.get_attributes(inherit=True)
 
         return attributes
+
+    @filter_by_filter_dict
+    def get_attributes(self, inherit: bool = False) -> list[Attribute]:
+        return self.get_all_attributes(inherit)
 
     def delete(self, recursive: bool = False) -> None:
         super(Object, self).delete(recursive)
@@ -832,6 +836,7 @@ class PropertySet(Hirarchy):
         return self._attributes
 
     @property
+    @filter_by_filter_dict
     def attributes(self) -> list[Attribute]:
         """returns Attributes filtered"""
         return sorted(self._attributes, key=lambda a: a.name)
