@@ -75,6 +75,9 @@ def load(cls: Type[Project], main_dict: MainDict) -> tuple[Project, dict]:
     if aggregation_attribute is not None:
         proj.aggregation_attribute = aggregation_attribute
 
+    proj.current_use_case = current_use_case
+    proj.current_project_phase = current_phase
+
     return proj, project_dict
 
 
