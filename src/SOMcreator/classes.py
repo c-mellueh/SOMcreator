@@ -27,21 +27,10 @@ def filter_by_filter_dict(func):
     return inner
 
 
-def get_uuid_dict() -> dict[str, Object | PropertySet | Attribute | Aggregation]:
-    pset_dict = {pset.uuid: pset for pset in PropertySet}
-    object_dict = {obj.uuid: obj for obj in Object}
-    attribute_dict = {attribute.uuid: attribute for attribute in Attribute}
-    aggregation_dict = {aggreg.uuid: aggreg for aggreg in Aggregation}
-    full_dict = pset_dict | object_dict | attribute_dict | aggregation_dict
-    if None in full_dict:
-        full_dict.pop(None)
-    return full_dict
-
-
-def get_element_by_uuid(uuid: str) -> Attribute | PropertySet | Object | Aggregation | None:
+def get_element_by_uuid(uuid: str, proj: SOMcreator.Project) -> Attribute | PropertySet | Object | Aggregation | None:
     if uuid is None:
         return None
-    return get_uuid_dict().get(uuid)
+    return proj.get_uuid_dict().get(uuid)
 
 
 class IterRegistry(type):
@@ -137,6 +126,21 @@ class Project(object):
 
     def get_object_by_identifier(self, identifier: str) -> Object | None:
         return {obj.ident_value: obj for obj in self.get_all_objects()}.get(identifier)
+
+    def get_uuid_dict(self):
+        pset_dict = {pset.uuid: pset for pset in self.get_all_property_sets()}
+        object_dict = {obj.uuid: obj for obj in self.get_all_objects()}
+        attribute_dict = {attribute.uuid: attribute for attribute in self.get_all_attributes()}
+        aggregation_dict = {aggreg.uuid: aggreg for aggreg in self.get_all_aggregations()}
+        full_dict = pset_dict | object_dict | attribute_dict | aggregation_dict
+        if None in full_dict:
+            full_dict.pop(None)
+        return full_dict
+
+    def get_element_by_uuid(self, uuid: str) -> Attribute | PropertySet | Object | Aggregation | None:
+        if uuid is None:
+            return None
+        return self.get_uuid_dict().get(uuid)
 
     @classmethod
     def open(cls, path: str | os.PathLike) -> Project:

@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 
 
 ### Import ###
-def _get_aggregation(proj, aggregation_dict: dict, identifier: str, ):
+def _get_aggregation(proj: SOMcreator.Project, aggregation_dict: dict, identifier: str, ):
     name, description, optional, parent, filter_matrix = core.get_basics(proj, aggregation_dict)
     object_uuid = aggregation_dict[OBJECT]
-    obj = classes.get_element_by_uuid(object_uuid)
+    obj = proj.get_element_by_uuid(object_uuid)
     parent_connection = aggregation_dict[CONNECTION]
     aggregation = classes.Aggregation(obj=obj, parent_connection=parent_connection, uuid=identifier,
                                       description=description, optional=optional, filter_matrix=filter_matrix)
@@ -31,9 +31,9 @@ def load(proj: classes.Project, main_dict: dict):
         _get_aggregation(proj, entity_dict, uuid_ident)
 
 
-def calculate():
+def calculate(proj: SOMcreator.Project):
     for aggregation, (uuid, connection_type) in SOMcreator.filehandling.aggregation_dict.items():
-        parent = classes.get_element_by_uuid(uuid)
+        parent = proj.get_element_by_uuid(uuid)
         if parent is None:
             continue
         parent.add_child(aggregation, connection_type)
