@@ -23,8 +23,8 @@ def _find_parent(uuid_dict, element: classes.ClassTypes):
         return identifier
 
 
-def calculate():
-    uuid_dict = classes.get_uuid_dict()
+def calculate(proj: SOMcreator.Project):
+    uuid_dict = proj.get_uuid_dict()
     for entity, uuid in SOMcreator.filehandling.parent_dict.items():
         if uuid is None:
             continue

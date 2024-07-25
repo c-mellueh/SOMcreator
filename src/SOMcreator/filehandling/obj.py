@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 ### Import ###
 
-def _load_object(proj, object_dict: ObjectDict, identifier: str) -> None:
+def _load_object(proj: SOMcreator.Project, object_dict: ObjectDict, identifier: str) -> None:
     name, description, optional, parent, filter_matrix = core.get_basics(proj, object_dict)
     ifc_mapping = object_dict[IFC_MAPPINGS]
     if isinstance(ifc_mapping, list):
@@ -28,7 +28,7 @@ def _load_object(proj, object_dict: ObjectDict, identifier: str) -> None:
     for ident, pset_dict in property_sets_dict.items():
         property_set.load(proj, pset_dict, ident, obj)
     ident_attrib_id = object_dict[IDENT_ATTRIBUTE]
-    ident_attrib = classes.get_element_by_uuid(ident_attrib_id)
+    ident_attrib = proj.get_element_by_uuid(ident_attrib_id)
     obj.ident_attrib = ident_attrib
     SOMcreator.filehandling.parent_dict[obj] = parent
 

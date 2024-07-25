@@ -4,5 +4,5 @@ from .constants import json_constants, value_constants
 from .tools import merge_projects
 from .core import export_excel as excel
 
-__version__ = "1.7.4"
+__version__ = "1.7.5"
 active_project = None
