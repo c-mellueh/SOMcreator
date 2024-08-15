@@ -39,5 +39,5 @@ def write(attribute: classes.Attribute) -> AttributeDict:
     attribute_dict[VALUE_TYPE] = attribute.value_type
     attribute_dict[CHILD_INHERITS_VALUE] = attribute.child_inherits_values
     attribute_dict[REVIT_MAPPING] = attribute.revit_name
-    attribute_dict[VALUE] = attribute.value
+    attribute_dict[VALUE] = attribute.get_own_values()
     return attribute_dict

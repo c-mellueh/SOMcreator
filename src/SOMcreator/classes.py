@@ -976,11 +976,15 @@ class Attribute(Hirarchy):
             return True
         return False
 
+    def get_own_values(self):
+        """returns values without inherited values"""
+        if not self.parent:
+            return self._value
+        return [v for v in self._value if v not in self.parent.value]
     @property
     def value(self) -> list:
         if self.is_inheriting_values:
-            values = [v for v in self._value if v not in self.parent.value]
-            return self.parent.value + values
+            return self.parent.value + self.get_own_values()
         return self._value
 
     @value.setter
